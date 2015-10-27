@@ -1,16 +1,16 @@
 import features as ft
-import re
 import os
 
 
 class Gtf:
     """utility functions to parse gtf"""
 
-    def __init__(self, gtf_file, test=False):
+    def __init__(self, gtf_file, gene_ids=None, test=False):
         if not test:
             assert isinstance(gtf_file, str)
             assert os.path.isfile(gtf_file)
         self.gtf_path = gtf_file
+        self.gene_ids = gene_ids
         self.genes = {}
 
     def get_genes(self):
@@ -22,8 +22,11 @@ class Gtf:
             if not dic:
                 continue
             gene = self._get_gene(dic)
+            if self.gene_ids and dic['attr']['gene_id'] not in self.gene_ids:
+                continue
             trans = self._get_transcript(dic, gene)
             exon = ft.Exon(int(dic['attr']['exon_number']), trans, dic['start'], dic['stop'])
+        return self.genes
 
     @staticmethod
     def _get_transcript(dic, gene):

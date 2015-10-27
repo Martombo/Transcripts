@@ -1,9 +1,11 @@
 import features as ft
 import unittest as ut
-import parser as ps
+import reader as rd
+import features as ft
+import unittest.mock as um
 
 
-class TestGeneTransExon(ut.TestCase):
+class TestFeature(ut.TestCase):
 
     def test_simple(self):
         gene1 = ft.Gene('g1', 'gene1', 'chr1', '+')
@@ -25,10 +27,37 @@ class TestGeneTransExon(ut.TestCase):
         trans2 = ft.Transcript('t2', gene1)
         self.assertEquals(2, len(gene1.transcripts.values()))
 
-    def test_get_genes(self):
-        parser = ps.Gtf('/Users/martin/notDropbox/utils/genes/prova.gtf')
+    def tst_get_genes(self):
+        parser = rd.Gtf('/Users/martin/notDropbox/utils/genes/prova.gtf')
         parser.get_genes()
         for gene in parser.genes.values():
             for trans in gene.transcripts.values():
                 for exon_n in range(len(trans.exons)):
                     self.assertEquals(exon_n, trans.exons[exon_n].number - 1)
+
+
+class TestTranscripts(ut.TestCase):
+
+    def test_fix_order(self):
+        gene = ft.Gene('', strand='+')
+        trans = ft.Transcript('', gene)
+        sites = trans._fix_order(10, 20)
+        self.assertLess(sites[0], sites[1])
+
+    def test_fix_order_opp(self):
+        gene = ft.Gene('', strand='+')
+        trans = ft.Transcript('', gene)
+        sites = trans._fix_order(20, 10)
+        self.assertLess(sites[0], sites[1])
+
+    def test_fix_order_rev(self):
+        gene = ft.Gene('', strand='-')
+        trans = ft.Transcript('', gene)
+        sites = trans._fix_order(10, 20)
+        self.assertGreater(sites[0], sites[1])
+
+    def test_fix_order_rev_opp(self):
+        gene = ft.Gene('', strand='-')
+        trans = ft.Transcript('', gene)
+        sites = trans._fix_order(10, 20)
+        self.assertGreater(sites[0], sites[1])
