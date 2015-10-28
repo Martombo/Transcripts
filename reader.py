@@ -25,6 +25,7 @@ class Gtf:
             if self.gene_ids and dic['attr']['gene_id'] not in self.gene_ids:
                 continue
             trans = self._get_transcript(dic, gene)
+            dic['start'], dic['stop'] = trans.fix_order(dic['start'], dic['stop'])
             exon = ft.Exon(int(dic['attr']['exon_number']), trans, dic['start'], dic['stop'])
         return self.genes
 
@@ -45,7 +46,7 @@ class Gtf:
             self.genes[gene_id] = gene
             return gene
 
-    def _parse_exon_line(self, linea, feature='.', annot='.'):
+    def _parse_exon_line(self, linea):
         """parses a gtf line, with attributes (see self._parse_attributes())
         :returns {chr, annot, feat, start, ..., attr}"""
         splat = linea.rstrip('\n').split('\t')

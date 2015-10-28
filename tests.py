@@ -1,8 +1,6 @@
-import features as ft
 import unittest as ut
 import reader as rd
 import features as ft
-import unittest.mock as um
 
 
 class TestFeature(ut.TestCase):
@@ -11,8 +9,7 @@ class TestFeature(ut.TestCase):
         gene1 = ft.Gene('g1', 'gene1', 'chr1', '+')
         trans1 = ft.Transcript('t1', gene1)
         exon1 = ft.Exon(1, trans1, 100, 200)
-        splice_sites = trans1.get_splice_sites()
-        self.assertEquals(0, len(splice_sites))
+        self.assertEquals(0, len(trans1.splice_sites))
 
     def test_2exons(self):
         gene1 = ft.Gene('g1', 'gene1', 'chr1', '+')
@@ -41,23 +38,23 @@ class TestTranscripts(ut.TestCase):
     def test_fix_order(self):
         gene = ft.Gene('', strand='+')
         trans = ft.Transcript('', gene)
-        sites = trans._fix_order(10, 20)
+        sites = trans.fix_order(10, 20)
         self.assertLess(sites[0], sites[1])
 
     def test_fix_order_opp(self):
         gene = ft.Gene('', strand='+')
         trans = ft.Transcript('', gene)
-        sites = trans._fix_order(20, 10)
+        sites = trans.fix_order(20, 10)
         self.assertLess(sites[0], sites[1])
 
     def test_fix_order_rev(self):
         gene = ft.Gene('', strand='-')
         trans = ft.Transcript('', gene)
-        sites = trans._fix_order(10, 20)
+        sites = trans.fix_order(10, 20)
         self.assertGreater(sites[0], sites[1])
 
     def test_fix_order_rev_opp(self):
         gene = ft.Gene('', strand='-')
         trans = ft.Transcript('', gene)
-        sites = trans._fix_order(10, 20)
+        sites = trans.fix_order(10, 20)
         self.assertGreater(sites[0], sites[1])
