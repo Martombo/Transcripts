@@ -25,7 +25,7 @@ class Gtf:
             if self.gene_ids and dic['attr']['gene_id'] not in self.gene_ids:
                 continue
             trans = self._get_transcript(dic, gene)
-            dic['start'], dic['stop'] = trans.fix_order(dic['start'], dic['stop'])
+            dic['start'], dic['stop'] = ft.fix_order(dic['start'], dic['stop'], trans.strand)
             exon = ft.Exon(int(dic['attr']['exon_number']), trans, dic['start'], dic['stop'])
         return self.genes
 

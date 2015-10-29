@@ -27,9 +27,8 @@ class Transcript:
         return self.gene.chromosome
 
     def get_exons_from_site(self, start, stop):
-        query = '_'.join([str(x) for x in self.fix_order(start, stop)])
+        query = '_'.join([str(x) for x in fix_order(start, stop, self.strand)])
         for site_n in range(self.n_splice_sites):
-            print(self.splice_sites[site_n], query)
             if self.splice_sites[site_n] == query:
                 return self.exons[site_n], self.exons[site_n + 1]
 
@@ -39,12 +38,6 @@ class Transcript:
         if prev_exon_i >= 0:
             self._add_splice_site(self.exons[prev_exon_i].stop, exon.start)
             self.n_splice_sites += 1
-
-    def fix_order(self, pos1, pos2):
-        reverse_it = True if self.strand == '-' else False
-        reverse_it = not reverse_it if pos1 > pos2 else reverse_it
-        poss = (pos2, pos1) if reverse_it else (pos1, pos2)
-        return poss
 
     def _add_splice_site(self, start, stop):
         self.splice_sites.append('_'.join([str(x) for x in (start, stop)]))
@@ -67,3 +60,66 @@ class Exon:
     @property
     def chromosome(self):
         return self.transcript.chromosome
+
+
+class GenomicInterval:
+
+    def __init__(self, chromosome, start, stop, name='', score='', strand='', n_quantiles=50):
+        """
+        positions are 1-based
+        """
+        self.chromosome = chromosome
+        self.start, self.stop = fix_order(start, stop, strand)
+        self.genomic_start = min(start, stop)
+        self.genomic_stop = max(start, stop)
+        self.name, self.score, self.strand = name, score, strand
+        self.quantile_width, self.quantiles = self._setup_quantiles(n_quantiles)
+        if strand and not name:
+            self.name = 'interval'
+        if strand and not score:
+            self.score = 0
+
+    def bed(self, n_cols=6):
+        if n_cols < 4:
+            return '\t'.join([str(x) for x in [self.chromosome, self.genomic_start - 1, self.genomic_stop]])
+        if self.strand and n_cols == 6:
+            return '\t'.join([str(x) for x in [self.chromosome, self.genomic_start - 1, self.genomic_stop,
+                                               self.name, self.score, self.strand]])
+
+    def includes(self, pos1, pos2=None):
+        if self.genomic_start < pos1 < self.genomic_stop:
+            return True
+        if pos2 and self.genomic_start < pos2 < self.genomic_stop:
+            return True
+        return False
+
+    def normalize_quantiles(self, divisor=None):
+        if not divisor:
+            divisor = max(self.quantiles + [1])
+        divisor = float(divisor)
+        for i in range(len(self.quantiles)):
+            self.quantiles[i] /= divisor
+
+    def add(self, pos, n=1):
+        n_bin = int(self._distance_from_start(pos) / self.quantile_width)
+        self.quantiles[n_bin] += n
+
+    def _distance_from_start(self, pos):
+        return abs(pos - self.start)
+
+    def _setup_quantiles(self, n_quantiles):
+        if not n_quantiles:
+            return 0, []
+        quantile_width = self._len() / float(n_quantiles)
+        quantiles = [0] * n_quantiles
+        return quantile_width, quantiles
+
+    def _len(self):
+        return self.genomic_stop - self.genomic_start + 1
+
+
+def fix_order(pos1, pos2, strand):
+    pos_sorted = sorted([pos1, pos2])
+    if strand == '-':
+        return pos_sorted[1], pos_sorted[0]
+    return pos_sorted
