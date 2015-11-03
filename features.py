@@ -10,13 +10,14 @@ class Gene:
 
 class Transcript:
 
-    def __init__(self, id, gene, exons=None):
+    def __init__(self, id, gene, cds_start=0, cds_stop=0, exons=None):
         self.id = id
         self.gene = gene
         self.gene.transcripts[id] = self
         self.exons = exons if exons else []
         self.splice_sites = []
         self.n_splice_sites = 0
+        self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
 
     @property
     def strand(self):
@@ -25,6 +26,21 @@ class Transcript:
     @property
     def chromosome(self):
         return self.gene.chromosome
+
+    @property
+    def three_utr_len(self):
+        if not self.cds_stop:
+            return 0
+        return self.distance_to_end(self.cds_stop)
+
+    @property
+    def five_utr_len(self):
+        if not self.cds_start:
+            return 0
+        return self.distance_to_end(self.cds_stop)
+
+    def set_cds(self, cds_start, cds_stop):
+        self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
 
     def get_exons_from_site(self, start, stop):
         query = '_'.join([str(x) for x in fix_order(start, stop, self.strand)])
@@ -42,15 +58,29 @@ class Transcript:
     def _add_splice_site(self, start, stop):
         self.splice_sites.append('_'.join([str(x) for x in (start, stop)]))
 
+    def distance_to_end(self, pos):
+        distance = 0
+        for exon in self.exons[::-1]:
+            if exon.includes(pos):
+                return distance + exon.distance_to_end(pos)
+            distance += exon.len
+
+    def distance_from_start(self, pos):
+        distance = 0
+        for exon in self.exons:
+            if exon.includes(pos):
+                return distance + exon.distance_from_start(pos)
+            distance += exon.len
+        return distance
+
 
 class Exon:
 
     def __init__(self, number, transcript, start, stop):
         self.number = number
-        self.start = start
-        self.stop = stop
         self.transcript = transcript
         assert len(self.transcript.exons) == number - 1
+        self.start, self.stop = fix_order(start, stop, self.strand)
         self.transcript.add_exon(self)
 
     @property
@@ -60,6 +90,23 @@ class Exon:
     @property
     def chromosome(self):
         return self.transcript.chromosome
+
+    @property
+    def len(self):
+        return self.stop - self.start + 1
+
+    def distance_from_start(self, pos):
+        return abs(self.start - pos)
+
+    def distance_to_end(self, pos):
+        return abs(self.stop - pos)
+
+    def includes(self, pos1, pos2=None):
+        if self.start <= pos1 <= self.stop:
+            return True
+        if pos2 and self.start <= pos2 <= self.stop:
+            return True
+        return False
 
 
 class GenomicInterval:

@@ -6,6 +6,11 @@ class Gtf:
     """utility functions to parse gtf"""
 
     def __init__(self, gtf_file, gene_ids=None, test=False):
+        """
+        :param gtf_file: path to gtf file
+        :param gene_ids: all genes whose id is not in this list are discarded
+        :param test: for testing
+        """
         if not test:
             assert isinstance(gtf_file, str)
             assert os.path.isfile(gtf_file)
@@ -15,61 +20,61 @@ class Gtf:
 
     def get_genes(self):
         """get genes dictionary
-        :return: genes dict where keys are gene_id
+        :returns genes dict where keys are gene_id
         """
         for linea in open(self.gtf_path).readlines():
-            dic = self._parse_exon_line(linea)
-            if not dic:
+            line_dic = self._parse_line(linea)
+            if not line_dic:
                 continue
-            gene = self._get_gene(dic)
-            if self.gene_ids and dic['attr']['gene_id'] not in self.gene_ids:
+            gene = self._get_gene(line_dic)
+            if self.gene_ids and line_dic['gene_id'] not in self.gene_ids:
                 continue
-            trans = self._get_transcript(dic, gene)
-            dic['start'], dic['stop'] = ft.fix_order(dic['start'], dic['stop'], trans.strand)
-            exon = ft.Exon(int(dic['attr']['exon_number']), trans, dic['start'], dic['stop'])
+            if line_dic['type'] == 'CDS':
+                trans = self._get_transcript(line_dic, gene)
+                trans.set_cds(line_dic['start'], line_dic['stop'])
+            elif line_dic['type'] == 'exon':
+                trans = self._get_transcript(line_dic, gene)
+                exon = ft.Exon(int(line_dic['exon_number']), trans, line_dic['start'], line_dic['stop'])
         return self.genes
 
     @staticmethod
-    def _get_transcript(dic, gene):
-        trans_id = dic['attr']['transcript_id']
+    def _get_transcript(attr, gene):
+        trans_id = attr['transcript_id']
         if trans_id in gene.transcripts:
             return gene.transcripts[trans_id]
         else:
             return ft.Transcript(trans_id, gene)
 
     def _get_gene(self, dic):
-        gene_id = dic['attr']['gene_id']
+        gene_id = dic['gene_id']
         if gene_id in self.genes:
             return self.genes[gene_id]
         else:
-            gene = ft.Gene(gene_id, dic['attr']['gene_name'], dic['chr'], dic['strand'])
+            gene = ft.Gene(gene_id, dic['gene_name'], dic['chr'], dic['strand'])
             self.genes[gene_id] = gene
             return gene
 
-    def _parse_exon_line(self, linea):
+    def _parse_line(self, string):
         """parses a gtf line, with attributes (see self._parse_attributes())
-        :returns {chr, annot, feat, start, ..., attr}"""
-        splat = linea.rstrip('\n').split('\t')
+        :returns {chr, annot, type, start, ..., attr}"""
+        splat = string.rstrip('\n').split('\t')
         if len(splat) < 8:
-            return None
-        if splat[2] != 'exon':
-            return None
-        attr = self._parse_attributes(splat[8])
-        return dict(chr=splat[0], annot=splat[1], feat=splat[2], start=int(splat[3]), stop=int(splat[4]),
-                    score=splat[5], strand=splat[6], frame=splat[7], attr=attr)
+            return
+        dic = dict(chr=splat[0], annot=splat[1], type=splat[2], start=int(splat[3]), stop=int(splat[4]),
+                        score=splat[5], strand=splat[6], frame=splat[7])
+        return self._add_attributes(dic, splat[8])
 
-    def _parse_attributes(self, attrs):
+    @staticmethod
+    def _add_attributes(dic, attrs):
         """parses the attributes in a dict
         :returns {'gene_id': 'ENSG000000123', 'gene_version' = '1', ...}
         """
         attrs_splat = attrs.split(';')
-        attr_dic = {}
         for attr in attrs_splat:
             if not attr:
                 continue
             attr = attr.lstrip(' ')
             attr_key = attr.split(' ')[0]
             attr_item = attr.split('"')[1]
-            attr_dic[attr_key] = attr_item
-        return attr_dic
-
+            dic[attr_key] = attr_item
+        return dic
