@@ -79,6 +79,8 @@ class Exon:
     def __init__(self, number, transcript, start, stop):
         self.number = number
         self.transcript = transcript
+        self.genomic_start = min(start, stop)
+        self.genomic_stop = max(start, stop)
         assert len(self.transcript.exons) == number - 1
         self.start, self.stop = fix_order(start, stop, self.strand)
         self.transcript.add_exon(self)
@@ -102,9 +104,9 @@ class Exon:
         return abs(self.stop - pos)
 
     def includes(self, pos1, pos2=None):
-        if self.start <= pos1 <= self.stop:
+        if self.genomic_start <= pos1 <= self.genomic_stop:
             return True
-        if pos2 and self.start <= pos2 <= self.stop:
+        if pos2 and self.genomic_start <= pos2 <= self.genomic_stop:
             return True
         return False
 
