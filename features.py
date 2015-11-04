@@ -37,7 +37,7 @@ class Transcript:
     def five_utr_len(self):
         if not self.cds_start:
             return 0
-        return self.distance_to_end(self.cds_stop)
+        return self.distance_from_start(self.cds_start)
 
     def set_cds(self, cds_start, cds_stop):
         self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)

@@ -44,6 +44,22 @@ class TestTranscripts(ut.TestCase):
         self.assertEquals(2, len(gene1.transcripts.values()))
 
 
+class TestExons(ut.TestCase):
+
+    gene1 = ft.Gene('g1', 'gene1', 'chr1', '+')
+    gene1_rev = ft.Gene('g1', 'gene1', 'chr1', '-')
+
+    def test_distance_from_start(self):
+        trans1 = ft.Transcript('t1', self.gene1)
+        exon1 = ft.Exon(1, trans1, 100, 200)
+        self.assertEqual(10, exon1.distance_from_start(110))
+
+    def test_distance_from_start_rev(self):
+        trans1 = ft.Transcript('t1', self.gene1_rev)
+        exon1 = ft.Exon(1, trans1, 100, 200)
+        self.assertEqual(70, exon1.distance_from_start(130))
+
+
 class TestGenomicInterval(ut.TestCase):
 
     gi = ft.GenomicInterval(1, 1, 100)

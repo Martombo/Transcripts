@@ -29,9 +29,9 @@ class Gtf:
             gene = self._get_gene(line_dic)
             if self.gene_ids and line_dic['gene_id'] not in self.gene_ids:
                 continue
-            if line_dic['type'] == 'CDS':
+            if line_dic['type'] == 'stop_codon':
                 trans = self._get_transcript(line_dic, gene)
-                trans.set_cds(line_dic['start'], line_dic['stop'])
+                trans.cds_stop = max(line_dic['start'], line_dic['stop'])
             elif line_dic['type'] == 'exon':
                 trans = self._get_transcript(line_dic, gene)
                 exon = ft.Exon(int(line_dic['exon_number']), trans, line_dic['start'], line_dic['stop'])
