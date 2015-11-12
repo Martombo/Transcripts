@@ -1,5 +1,4 @@
 import reader as rd
-import features as ft
 
 
 class TranscriptsGroup:
@@ -29,21 +28,21 @@ class TranscriptsGroup:
 
     def _get_closest_antisense(self, trans, trans_i, trans_chrom):
         strand = trans.strand
-        closest_as_downstream = self._get_antisense_in_range(range(trans_i + 1, len(trans_chrom)), trans_chrom, strand)
-        closest_as_upstream = self._get_antisense_in_range(range(trans_i - 1, -1, -1), trans_chrom, strand)
-        if not closest_as_upstream:
-            return closest_as_downstream
-        if not closest_as_downstream:
-            return closest_as_upstream
-        if abs(trans.tss - closest_as_downstream.tss) < abs(trans.tss - closest_as_upstream.tss):
-            return closest_as_downstream
-        return closest_as_upstream
+        as_downstream = self._as_in_range(range(trans_i + 1, len(trans_chrom)), trans_chrom, strand, trans.gene.id)
+        as_upstream = self._as_in_range(range(trans_i - 1, -1, -1), trans_chrom, strand, trans.gene.id)
+        if not as_upstream:
+            return as_downstream
+        if not as_downstream:
+            return as_upstream
+        if abs(trans.tss - as_downstream.tss) < abs(trans.tss - as_upstream.tss):
+            return as_downstream
+        return as_upstream
 
     @staticmethod
-    def _get_antisense_in_range(trans_range, trans_chrom, strand):
-        for trans in trans_range:
-            if trans_chrom[trans] != strand:
-                return trans_chrom[trans]
+    def _as_in_range(trans_range, trans_chrom, strand, gene_id):
+        for trans_j in trans_range:
+            if trans_chrom[trans_j] != strand and trans_chrom[trans_j].gene.id != gene_id:
+                return trans_chrom[trans_j]
 
     def _add_tss(self, trans):
         if trans.chromosome not in self.transcripts:

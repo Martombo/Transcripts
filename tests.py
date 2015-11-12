@@ -109,7 +109,7 @@ class TranscriptsGroup(ut.TestCase):
         trans_group = gr.TranscriptsGroup()
         trans_group._add_tss(self.trans_100)
         trans_group._add_tss(self.trans_rev_250)
-        antisense = trans_group._get_antisense_in_range(range(1, 2), trans_group.transcripts['chr1'], '+')
+        antisense = trans_group._as_in_range(range(1, 2), trans_group.transcripts['chr1'], '+')
         self.assertEquals(self.trans_rev_250, antisense)
 
     def test_get_closest_antisense(self):
