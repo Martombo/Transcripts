@@ -34,6 +34,10 @@ class Transcript:
         return self.distance_to_end(self.cds_stop)
 
     @property
+    def tss(self):
+        return self.exons[0].start
+
+    @property
     def five_utr_len(self):
         if not self.cds_start:
             return 0
@@ -95,7 +99,7 @@ class Exon:
 
     @property
     def len(self):
-        return self.stop - self.start + 1
+        return self.genomic_stop - self.genomic_start + 1
 
     def distance_from_start(self, pos):
         return abs(self.start - pos)
@@ -128,6 +132,10 @@ class GenomicInterval:
         if strand and not score:
             self.score = 0
 
+    @property
+    def len(self):
+        return self.genomic_stop - self.genomic_start + 1
+
     def bed(self, n_cols=6):
         if n_cols < 4:
             return '\t'.join([str(x) for x in [self.chromosome, self.genomic_start - 1, self.genomic_stop]])
@@ -159,12 +167,9 @@ class GenomicInterval:
     def _setup_quantiles(self, n_quantiles):
         if not n_quantiles:
             return 0, []
-        quantile_width = self._len() / float(n_quantiles)
+        quantile_width = self.len / float(n_quantiles)
         quantiles = [0] * n_quantiles
         return quantile_width, quantiles
-
-    def _len(self):
-        return self.genomic_stop - self.genomic_start + 1
 
 
 def fix_order(pos1, pos2, strand):
