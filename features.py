@@ -172,6 +172,36 @@ class GenomicInterval:
         return quantile_width, quantiles
 
 
+class Sequence:
+
+    def __init__(self, seq):
+        self.seq = seq
+        self.len = len(seq)
+
+    def get_orfs(self):
+        orfs = []
+        for pos in range(self.len - 2):
+            if self.is_start(pos):
+                stop = self.next_stop(pos + 3)
+                if stop:
+                    orfs.append([pos, stop])
+        return orfs
+
+    def next_stop(self, pos):
+        while pos < self.len - 2:
+            if self.is_stop(pos):
+                return pos
+            pos += 3
+
+    def is_start(self, pos):
+        assert pos < len(self.seq) - 2
+        return self.seq[pos:pos+3] == 'ATG'
+
+    def is_stop(self, pos):
+        assert pos >= 0
+        return self.seq[pos:pos+3] in ['TAA', 'TGA', 'TAG']
+
+
 def fix_order(pos1, pos2, strand):
     pos_sorted = sorted([pos1, pos2])
     if strand == '-':

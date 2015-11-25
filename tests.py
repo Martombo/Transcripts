@@ -1,7 +1,6 @@
 import unittest as ut
 import features as ft
 import groups as gr
-import reader as rd
 
 
 class TestFeatureGeneral(ut.TestCase):
@@ -68,7 +67,7 @@ class TranscriptsGroup(ut.TestCase):
     exon_100 = ft.Exon(1, trans_100, 100, 200)
     trans_130 = ft.Transcript('t2', gene)
     exon_130 = ft.Exon(1, trans_130, 130, 230)
-    gene_rev = ft.Gene('g1', 'gene2', 'chr1', '-')
+    gene_rev = ft.Gene('g2', 'gene2', 'chr1', '-')
     trans_rev_250 = ft.Transcript('t3', gene_rev)
     exon_rev_250 = ft.Exon(1, trans_rev_250, 100, 250)
     trans_rev_30 = ft.Transcript('t4', gene_rev)
@@ -109,7 +108,7 @@ class TranscriptsGroup(ut.TestCase):
         trans_group = gr.TranscriptsGroup()
         trans_group._add_tss(self.trans_100)
         trans_group._add_tss(self.trans_rev_250)
-        antisense = trans_group._as_in_range(range(1, 2), trans_group.transcripts['chr1'], '+')
+        antisense = trans_group._as_in_range(range(1, 2), trans_group.transcripts['chr1'], '+', 'lulli')
         self.assertEquals(self.trans_rev_250, antisense)
 
     def test_get_closest_antisense(self):
@@ -197,3 +196,40 @@ class TestGenomicInterval(ut.TestCase):
 
     def test_includes_pos2_not(self):
         self.assertTrue(self.gi.includes(23,66))
+
+
+class TestSequence(ut.TestCase):
+
+    def test_is_start(self):
+        seq = ft.Sequence('AAAAAATGCCCCCC')
+        self.assertFalse(seq.is_start(0))
+        self.assertFalse(seq.is_start(11))
+        self.assertTrue(seq.is_start(5))
+
+    def test_is_stop(self):
+        seq = ft.Sequence('AAAATAGCCGCCCC')
+        self.assertFalse(seq.is_stop(0))
+        self.assertFalse(seq.is_stop(10))
+        self.assertTrue(seq.is_stop(4))
+
+    def test_next_stop(self):
+        seq = ft.Sequence('ACGACGTGACCGCCCC')
+        self.assertEqual(6, seq.next_stop(0))
+        self.assertIsNone(seq.next_stop(1))
+        self.assertIsNone(seq.next_stop(7))
+
+    def test_get_orfs(self):
+        seq = ft.Sequence('AATGCCCTGACCC')
+        orfs = seq.get_orfs()
+        self.assertEqual(1, len(orfs))
+        self.assertEqual(1, orfs[0][0])
+        self.assertEqual(7, orfs[0][1])
+
+    def test_get_2orfs(self):
+        seq = ft.Sequence('AATGCCCTGACCCGATGTAA')
+        orfs = seq.get_orfs()
+        self.assertEqual(2, len(orfs))
+        self.assertEqual(1, orfs[0][0])
+        self.assertEqual(7, orfs[0][1])
+        self.assertEqual(14, orfs[1][0])
+        self.assertEqual(17, orfs[1][1])
