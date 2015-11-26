@@ -1,4 +1,6 @@
 import features as ft
+import subprocess as sp
+import pysam as ps
 import os
 
 
@@ -95,3 +97,55 @@ class Gtf:
             attr_item = attr.split('"')[1]
             dic[attr_key] = attr_item
         return dic
+
+
+class Bam():
+    """utility functions to parse bam"""
+
+    def __init__(self, path=None, reads_orientation='forward', test=False):
+        """
+        :param reads_orientation: either 'forward', 'reverse' or 'mixed'
+        """
+        if not test:
+            assert path
+            assert path[-4:] == '.bam'
+            assert os.path.isfile(path)
+            if not os.path.isfile(path + '.bai'):
+                p_index = sp.Popen(['samtools', 'index', path])
+                p_index.communicate()
+            assert os.path.isfile(path + '.bai')
+            assert reads_orientation in ['forward', 'reverse', 'mixed']
+            self.pysam = ps.AlignmentFile(path, 'rb')
+        self.reads_orientation = reads_orientation
+
+    def get_coverage(self, chrom, start, stop=None, strand='', min_qual=40):
+        """
+        get the number of reads in region
+        reads is counted even if only 1 base overlaps region
+        :param chrom: str chromosome name
+        :param start: int start
+        :param stop: int stop
+        :param strand: '+', '-' or None
+        :param min_qual: default TopHat: only uniquely mapped reads
+        """
+        if not stop:
+            stop = start + 1
+        fetch = self.pysam.fetch(chrom, start, stop)
+        n_reads = 0
+        for read in fetch:
+            if read.mapq >= min_qual:
+                if strand and strand == self.determine_strand(read):
+                    n_reads += 1
+        return n_reads
+
+    def determine_strand(self, read):
+        if self.reads_orientation == 'mixed':
+            return 'NA'
+        strand_bool = True
+        if read.is_reverse:
+            strand_bool = not strand_bool
+        if self.reads_orientation == 'reverse':
+            strand_bool = not strand_bool
+        if read.is_read2:
+            strand_bool = not strand_bool
+        return '+' if strand_bool else '-'

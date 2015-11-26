@@ -1,8 +1,8 @@
 import unittest as ut
 import features as ft
 import groups as gr
-import unittest.mock as um
 import reader as rd
+import pysam
 
 
 class TestFeatureGeneral(ut.TestCase):
@@ -45,6 +45,7 @@ class TestTranscripts(ut.TestCase):
 
     chr1 = ft.Chromosome('chr1')
     gene1 = ft.Gene('g1', chr1, 'gene1', '+')
+    gene2 = ft.Gene('g1', chr1, 'gene1', '-')
 
     def test_simple(self):
         trans1 = ft.Transcript('t1', self.gene1)
@@ -61,6 +62,16 @@ class TestTranscripts(ut.TestCase):
         trans1 = ft.Transcript('t1', self.gene1)
         trans2 = ft.Transcript('t2', self.gene1)
         self.assertEquals(2, len(self.gene1.trans_dict.values()))
+
+    def test_move_pos(self):
+        trans1 = ft.Transcript('t1', self.gene1)
+        pos = trans1.move_pos(100,+10)
+        self.assertEqual(110, pos)
+
+    def test_move_pos2(self):
+        trans2 = ft.Transcript('t2', self.gene2)
+        pos = trans2.move_pos(100,+10)
+        self.assertEqual(90, pos)
 
 
 class TestGene(ut.TestCase):
@@ -268,7 +279,7 @@ class TestSequence(ut.TestCase):
         self.assertEqual(17, orfs[1][1])
 
 
-class TestReader(ut.TestCase):
+class TestReaderGtf(ut.TestCase):
 
     attr = 'gene_id "ENSG00000223972"; gene_version "5"; gene_name "DDX11L1"; gene_source "havana"; gene_biotype "transcribed_unprocessed_pseudogene"; transcript_id "ENST00000249857"; exon_number "1";\n'
     mocking = '\t'.join(['1', 'havana', 'exon', '11869', '14409', '.', '+', '.', attr])
@@ -279,3 +290,36 @@ class TestReader(ut.TestCase):
         self.assertIsNotNone(line_dic)
         gene = gtf._get_gene(line_dic)
         self.assertIsNotNone(gene)
+
+
+class TestReaderBam(ut.TestCase):
+
+    read = pysam.AlignedSegment()
+    parser_bam = rd.Bam(test=True)
+
+    def test_det_strand(self):
+        self.read.is_reverse = False
+        self.read.is_read2 = False
+        strand = self.parser_bam.determine_strand(self.read)
+        self.assertEquals('+', strand)
+
+    def test_det_strand_rev(self):
+        self.read.is_reverse = True
+        self.read.is_read2 = False
+        self.assertNotEqual('reverse',self.parser_bam.reads_orientation)
+        strand = self.parser_bam.determine_strand(self.read)
+        self.assertEquals('-', strand)
+
+    def test_det_strand_rev_mate(self):
+        self.read.is_reverse = True
+        self.read.is_read2 = True
+        strand = self.parser_bam.determine_strand(self.read)
+        self.assertEquals('+', strand)
+
+    def test_det_strand_opp(self):
+        self.read.is_reverse = False
+        self.read.is_read2 = False
+        self.parser_bam.reads_orientation = 'reverse'
+        strand = self.parser_bam.determine_strand(self.read)
+        self.parser_bam.reads_orientation = 'forward'
+        self.assertEquals('-', strand)

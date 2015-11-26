@@ -8,6 +8,17 @@ class Genome:
         for chrom in self.chroms_dict.values():
             yield chrom
 
+    @property
+    def genes(self):
+        for chrom in self.chromosomes:
+            for gene in chrom.genes:
+                yield gene
+
+    @property
+    def transcripts(self):
+        for chrom in self.chromosomes:
+            for trans in chrom.transcripts:
+                yield trans
 
 class Chromosome:
 
@@ -72,7 +83,8 @@ class Transcript:
 
     @property
     def tss(self):
-        return self.exons[0].start
+        if len(self.exons) > 0:
+            return self.exons[0].start
 
     @property
     def five_utr_len(self):
@@ -95,6 +107,18 @@ class Transcript:
         if prev_exon_i >= 0:
             self._add_splice_site(self.exons[prev_exon_i].stop, exon.start)
             self.n_splice_sites += 1
+
+    def get_stop_counts(self, bam):
+        if self.tss:
+            n_stop = bam.get_coverage(self.chromosome, self.move_pos(self.tss, -14), strand=self.strand)
+            n_stop = max(n_stop, bam.get_coverage(self.chromosome, self.move_pos(self.tss, -7), strand=self.strand))
+            n_stop = max(n_stop, bam.get_coverage(self.chromosome, self.tss, strand=self.strand))
+            return n_stop
+
+    def move_pos(self, pos, move):
+        if self.strand == '+':
+            return pos + move
+        return pos - move
 
     def _add_splice_site(self, start, stop):
         self.splice_sites.append('_'.join([str(x) for x in (start, stop)]))
@@ -122,6 +146,7 @@ class Exon:
         self.transcript = transcript
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
+#        assert len(self.transcript.exons) == number - 1
         self.start, self.stop = fix_order(start, stop, self.strand)
         self.transcript.add_exon(self)
 
