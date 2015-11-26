@@ -11,7 +11,7 @@ class TranscriptsGroup:
 
     def ordered_transcripts_tss(self):
         if not self.gtf.genes:
-            self.gtf.get_genes()
+            self.gtf.get_genome()
         for gene in self.gtf.genes.values():
             for transcript in gene.transcripts.values():
                 self._add_tss(transcript)

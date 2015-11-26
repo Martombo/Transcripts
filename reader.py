@@ -16,46 +16,63 @@ class Gtf:
             assert os.path.isfile(gtf_file)
         self.gtf_path = gtf_file
         self.gene_ids = gene_ids
-        self.genes = {}
+        self.genome = ft.Genome()
 
-    def get_genes(self):
+    def get_genome(self):
         """get genes dictionary
         :returns genes dict where keys are gene_id
         """
-        for linea in open(self.gtf_path).readlines():
-            line_dic = self._parse_line(linea)
-            if not line_dic:
-                continue
-            gene = self._get_gene(line_dic)
-            if self.gene_ids and line_dic['gene_id'] not in self.gene_ids:
-                continue
-            if line_dic['type'] == 'stop_codon':
-                trans = self._get_transcript(line_dic, gene)
-                trans.cds_stop = max(line_dic['start'], line_dic['stop'])
-            elif line_dic['type'] == 'exon':
-                trans = self._get_transcript(line_dic, gene)
-                exon = ft.Exon(int(line_dic['exon_number']), trans, line_dic['start'], line_dic['stop'])
-        return self.genes
+        with open(self.gtf_path) as f:
+            for linea in f:
+                line_dic = self._parse_line(linea)
+                if not line_dic:
+                    continue
+                gene = self._get_gene(line_dic)
+                if self.gene_ids and line_dic['gene_id'] not in self.gene_ids:
+                    continue
+                if line_dic['type'] == 'stop_codon':
+                    trans = self._get_transcript(line_dic, gene)
+                    trans.cds_stop = max(line_dic['start'], line_dic['stop'])
+                elif line_dic['type'] == 'exon':
+                    trans = self._get_transcript(line_dic, gene)
+                    exon = ft.Exon(int(line_dic['exon_number']), trans, line_dic['start'], line_dic['stop'])
+        return self.genome
 
     @staticmethod
     def _get_transcript(attr, gene):
+        """
+        returns a Transcript from the Gene, if it's already present.
+        otherwise a new Transcript
+        """
         trans_id = attr['transcript_id']
         if trans_id in gene.transcripts:
             return gene.transcripts[trans_id]
-        else:
-            return ft.Transcript(trans_id, gene)
+        return ft.Transcript(trans_id, gene)
 
     def _get_gene(self, dic):
+        """
+        returns a Gene from the Genome, if it's already present.
+        otherwise a new Gene
+        """
+        chrom = self._get_chrom(dic['chr'])
         gene_id = dic['gene_id']
-        if gene_id in self.genes:
-            return self.genes[gene_id]
-        else:
-            gene = ft.Gene(gene_id, dic['gene_name'], dic['chr'], dic['strand'])
-            self.genes[gene_id] = gene
-            return gene
+        if gene_id in chrom.genes_dict:
+            return chrom.genes_dict[gene_id]
+        gene = ft.Gene(gene_id, chrom, dic['gene_name'], dic['strand'])
+        return gene
+
+    def _get_chrom(self, chrom_name):
+        """
+        returns a Chromosome from the Genome, if it's already present.
+        otherwise a new Chromosome
+        """
+        if chrom_name in self.genome.chroms_dict:
+            return self.genome.chroms_dict[chrom_name]
+        return ft.Chromosome(chrom_name, self.genome)
 
     def _parse_line(self, string):
         """parses a gtf line, with attributes (see self._parse_attributes())
+        :rtype: dict
         :returns {chr, annot, type, start, ..., attr}"""
         splat = string.rstrip('\n').split('\t')
         if len(splat) < 8:

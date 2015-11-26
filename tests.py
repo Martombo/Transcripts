@@ -1,6 +1,8 @@
 import unittest as ut
 import features as ft
 import groups as gr
+import unittest.mock as um
+import reader as rd
 
 
 class TestFeatureGeneral(ut.TestCase):
@@ -22,32 +24,11 @@ class TestFeatureGeneral(ut.TestCase):
         self.assertGreater(sites[0], sites[1])
 
 
-class TestTranscripts(ut.TestCase):
-
-    def test_simple(self):
-        gene1 = ft.Gene('g1', 'gene1', 'chr1', '+')
-        trans1 = ft.Transcript('t1', gene1)
-        exon1 = ft.Exon(1, trans1, 100, 200)
-        self.assertEquals(0, len(trans1.splice_sites))
-
-    def test_2exons(self):
-        gene1 = ft.Gene('g1', 'gene1', 'chr1', '+')
-        trans1 = ft.Transcript('t1', gene1)
-        exon1 = ft.Exon(1, trans1, 100, 200)
-        exon2 = ft.Exon(2, trans1, 300, 400)
-        self.assertEquals(2, len(trans1.exons))
-
-    def test_2trans(self):
-        gene1 = ft.Gene('g1', 'gene1', 'chr1', '+')
-        trans1 = ft.Transcript('t1', gene1)
-        trans2 = ft.Transcript('t2', gene1)
-        self.assertEquals(2, len(gene1.transcripts.values()))
-
-
 class TestExons(ut.TestCase):
 
-    gene1 = ft.Gene('g1', 'gene1', 'chr1', '+')
-    gene1_rev = ft.Gene('g1', 'gene1', 'chr1', '-')
+    chr1 = ft.Chromosome('chr1')
+    gene1 = ft.Gene('g1', chr1, 'gene1', '+')
+    gene1_rev = ft.Gene('g1', chr1, 'gene1', '-')
 
     def test_distance_from_start(self):
         trans1 = ft.Transcript('t1', self.gene1)
@@ -60,14 +41,66 @@ class TestExons(ut.TestCase):
         self.assertEqual(70, exon1.distance_from_start(130))
 
 
-class TranscriptsGroup(ut.TestCase):
+class TestTranscripts(ut.TestCase):
 
-    gene = ft.Gene('g1', 'gene1', 'chr1', '+')
+    chr1 = ft.Chromosome('chr1')
+    gene1 = ft.Gene('g1', chr1, 'gene1', '+')
+
+    def test_simple(self):
+        trans1 = ft.Transcript('t1', self.gene1)
+        exon1 = ft.Exon(1, trans1, 100, 200)
+        self.assertEquals(0, len(trans1.splice_sites))
+
+    def test_2exons(self):
+        trans1 = ft.Transcript('t1', self.gene1)
+        exon1 = ft.Exon(1, trans1, 100, 200)
+        exon2 = ft.Exon(2, trans1, 300, 400)
+        self.assertEquals(2, len(trans1.exons))
+
+    def test_2trans(self):
+        trans1 = ft.Transcript('t1', self.gene1)
+        trans2 = ft.Transcript('t2', self.gene1)
+        self.assertEquals(2, len(self.gene1.trans_dict.values()))
+
+
+class TestGene(ut.TestCase):
+
+    chr1 = ft.Chromosome('chr1')
+    gene1 = ft.Gene('g1', chr1, 'gene1', '+')
+    trans1 = ft.Transcript('t1', gene1)
+
+    def test_transcripts(self):
+        n = 0
+        for trans in self.gene1.transcripts:
+            n += 1
+        self.assertEqual(1, n)
+
+
+class TestChromosome(ut.TestCase):
+
+    chr1 = ft.Chromosome('chr1')
+    gene1 = ft.Gene('g1', chr1)
+    trans1 = ft.Transcript('t1', gene1)
+    trans2 = ft.Transcript('t2', gene1)
+    gene2 = ft.Gene('g2', chr1)
+    trans3 = ft.Transcript('t3', gene2)
+
+    def test_transcripts(self):
+        n = 0
+        for k in self.chr1.transcripts:
+            n += 1
+        self.assertEqual(3, n)
+
+
+class TestTranscriptsGroup(ut.TestCase):
+
+    chr1 = ft.Chromosome('chr1')
+    gene = ft.Gene('g1', chr1, 'gene1', '+')
     trans_100 = ft.Transcript('t1', gene)
     exon_100 = ft.Exon(1, trans_100, 100, 200)
     trans_130 = ft.Transcript('t2', gene)
     exon_130 = ft.Exon(1, trans_130, 130, 230)
-    gene_rev = ft.Gene('g2', 'gene2', 'chr1', '-')
+    gene_rev = ft.Gene('g2', chr1, 'gene2', '-')
     trans_rev_250 = ft.Transcript('t3', gene_rev)
     exon_rev_250 = ft.Exon(1, trans_rev_250, 100, 250)
     trans_rev_30 = ft.Transcript('t4', gene_rev)
@@ -233,3 +266,16 @@ class TestSequence(ut.TestCase):
         self.assertEqual(7, orfs[0][1])
         self.assertEqual(14, orfs[1][0])
         self.assertEqual(17, orfs[1][1])
+
+
+class TestReader(ut.TestCase):
+
+    attr = 'gene_id "ENSG00000223972"; gene_version "5"; gene_name "DDX11L1"; gene_source "havana"; gene_biotype "transcribed_unprocessed_pseudogene"; transcript_id "ENST00000249857"; exon_number "1";\n'
+    mocking = '\t'.join(['1', 'havana', 'exon', '11869', '14409', '.', '+', '.', attr])
+
+    def test_parse_line(self):
+        gtf = rd.Gtf('', test=True)
+        line_dic = gtf._parse_line(self.mocking)
+        self.assertIsNotNone(line_dic)
+        gene = gtf._get_gene(line_dic)
+        self.assertIsNotNone(gene)

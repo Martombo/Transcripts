@@ -1,20 +1,57 @@
+class Genome:
+
+    def __init__(self):
+        self.chroms_dict = {}
+
+    @property
+    def chromosomes(self):
+        for chrom in self.chroms_dict.values():
+            yield chrom
+
+
+class Chromosome:
+
+    def __init__(self, name, genome = None):
+        self.name = name
+        self.genes_dict = {}
+        if genome:
+            genome.chroms_dict[name] = self
+
+    @property
+    def genes(self):
+        for gene in self.genes_dict.values():
+            yield gene
+
+    @property
+    def transcripts(self):
+        for gene in self.genes:
+            for trans in gene.transcripts:
+                yield trans
+
+
 class Gene:
 
-    def __init__(self, id, name='', chromosome='', strand='', transcripts=None):
+    def __init__(self, id, chromosome, name='', strand=''):
         self.id = id
         self.name = name
-        self.chromosome = chromosome
+        self.chromosome = chromosome.name
+        chromosome.genes_dict[id] = self
         self.strand = strand
-        self.transcripts = transcripts if transcripts else {}
+        self.trans_dict = {}
+
+    @property
+    def transcripts(self):
+        for trans in self.trans_dict.values():
+            yield trans
 
 
 class Transcript:
 
-    def __init__(self, id, gene, cds_start=0, cds_stop=0, exons=None):
+    def __init__(self, id, gene, cds_start=0, cds_stop=0):
         self.id = id
         self.gene = gene
-        self.gene.transcripts[id] = self
-        self.exons = exons if exons else []
+        self.gene.trans_dict[id] = self
+        self.exons = []
         self.splice_sites = []
         self.n_splice_sites = 0
         self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
@@ -85,7 +122,6 @@ class Exon:
         self.transcript = transcript
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
-        assert len(self.transcript.exons) == number - 1
         self.start, self.stop = fix_order(start, stop, self.strand)
         self.transcript.add_exon(self)
 
