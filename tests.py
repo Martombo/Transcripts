@@ -23,6 +23,14 @@ class TestFeatureGeneral(ut.TestCase):
         sites = ft.fix_order(20, 10, '-')
         self.assertGreater(sites[0], sites[1])
 
+    def test_move_pos(self):
+        pos = ft.move_pos(100,+10, '+')
+        self.assertEqual(110, pos)
+
+    def test_move_pos2(self):
+        pos = ft.move_pos(100,+10, '-')
+        self.assertEqual(90, pos)
+
 
 class TestExons(ut.TestCase):
 
@@ -62,16 +70,6 @@ class TestTranscripts(ut.TestCase):
         trans1 = ft.Transcript('t1', self.gene1)
         trans2 = ft.Transcript('t2', self.gene1)
         self.assertEquals(2, len(self.gene1.trans_dict.values()))
-
-    def test_move_pos(self):
-        trans1 = ft.Transcript('t1', self.gene1)
-        pos = trans1.move_pos(100,+10)
-        self.assertEqual(110, pos)
-
-    def test_move_pos2(self):
-        trans2 = ft.Transcript('t2', self.gene2)
-        pos = trans2.move_pos(100,+10)
-        self.assertEqual(90, pos)
 
 
 class TestGene(ut.TestCase):
@@ -147,7 +145,6 @@ class TestTranscriptsGroup(ut.TestCase):
         self.assertEquals(100, trans_group.transcripts['chr1'][1].tss)
         self.assertEquals(250, trans_group.transcripts['chr1'][2].tss)
 
-
     def test_get_antisense_in_range(self):
         trans_group = gr.TranscriptsGroup()
         trans_group._add_tss(self.trans_100)
@@ -173,7 +170,8 @@ class TestTranscriptsGroup(ut.TestCase):
 
 class TestGenomicInterval(ut.TestCase):
 
-    gi = ft.GenomicInterval(1, 1, 100)
+    chr1 = ft.Chromosome('1')
+    gi = ft.GenomicInterval(chr1, 1, 100)
 
     def test_len(self):
         self.assertEquals(100, self.gi.len)
@@ -290,6 +288,10 @@ class TestReaderGtf(ut.TestCase):
         self.assertIsNotNone(line_dic)
         gene = gtf._get_gene(line_dic)
         self.assertIsNotNone(gene)
+
+    def test_it(self):
+        gtf = rd.Gtf('/Users/martin/notDropbox/utils/genes/Homo_sapiens.GRCh38.81_head.gtf')
+        genome = gtf.get_genome()
 
 
 class TestReaderBam(ut.TestCase):

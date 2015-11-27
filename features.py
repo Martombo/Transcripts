@@ -1,7 +1,22 @@
+import subprocess as sp
+
+
 class Genome:
 
-    def __init__(self):
+    def __init__(self, fasta_path=''):
+        self.fasta_path = fasta_path
         self.chroms_dict = {}
+
+    def get_sequence(self, chrom, start, stop, strand):
+        """finds the sequence of a genomic interval '1:387941-388099', '+' """
+        assert self.fasta_path
+        pos_string = chrom + ':' + str(start) + '-' + str(stop)
+        samtools_cmm = ['samtools', 'faidx', self.fasta_path, pos_string]
+        samtools_out = sp.check_output(samtools_cmm).decode()
+        seq = fasta2seq(samtools_out)
+        if strand == '-':
+            seq = comp_rev(seq)
+        return seq.upper()
 
     @property
     def chromosomes(self):
@@ -20,13 +35,18 @@ class Genome:
             for trans in chrom.transcripts:
                 yield trans
 
+
 class Chromosome:
 
-    def __init__(self, name, genome = None):
+    def __init__(self, name, genome=None):
         self.name = name
         self.genes_dict = {}
         if genome:
+            self.genome = genome
             genome.chroms_dict[name] = self
+
+    def get_sequence(self, start, stop, strand):
+        return self.genome.get_sequence(self.name, start, stop, strand)
 
     @property
     def genes(self):
@@ -45,10 +65,15 @@ class Gene:
     def __init__(self, id, chromosome, name='', strand=''):
         self.id = id
         self.name = name
-        self.chromosome = chromosome.name
+        self.chromosome = chromosome
         chromosome.genes_dict[id] = self
         self.strand = strand
         self.trans_dict = {}
+
+    def get_sequence(self, start, stop):
+        if start >= stop:
+            return ''
+        return self.chromosome.get_sequence(start, stop, self.strand)
 
     @property
     def transcripts(self):
@@ -58,14 +83,17 @@ class Gene:
 
 class Transcript:
 
-    def __init__(self, id, gene, cds_start=0, cds_stop=0):
+    def __init__(self, id, gene, cds_start=None, cds_stop=None):
         self.id = id
         self.gene = gene
         self.gene.trans_dict[id] = self
         self.exons = []
         self.splice_sites = []
-        self.n_splice_sites = 0
-        self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
+        self.cds_start, self.cds_stop = self._fix_order(cds_start, cds_stop)
+
+    @property
+    def n_splice_sites(self):
+        return len(self.splice_sites)
 
     @property
     def strand(self):
@@ -92,11 +120,19 @@ class Transcript:
             return 0
         return self.distance_from_start(self.cds_start)
 
-    def set_cds(self, cds_start, cds_stop):
-        self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
+    def get_sequence(self, start=None, stop=None):
+        return ''.join([exon.get_sequence(start, stop) for exon in self.exons])
+
+    def get_5utr_seq(self):
+        if self.cds_start:
+            return self.get_sequence(stop=self.cds_start)
+
+    def get_3utr_seq(self):
+        if self.cds_stop:
+            return self.get_sequence(start=self.cds_stop)
 
     def get_exons_from_site(self, start, stop):
-        query = '_'.join([str(x) for x in fix_order(start, stop, self.strand)])
+        query = '_'.join([str(x) for x in self._fix_order(start, stop)])
         for site_n in range(self.n_splice_sites):
             if self.splice_sites[site_n] == query:
                 return self.exons[site_n], self.exons[site_n + 1]
@@ -106,22 +142,24 @@ class Transcript:
         prev_exon_i = len(self.exons) - 2
         if prev_exon_i >= 0:
             self._add_splice_site(self.exons[prev_exon_i].stop, exon.start)
-            self.n_splice_sites += 1
+
+    def add_cds(self, start, stop):
+        start, stop = self._fix_order(start, stop)
+        self.cds_start = self._fix_order(self.cds_start, start)[0]
+        self.cds_stop = self._fix_order(self.cds_stop, stop)[1]
 
     def get_stop_counts(self, bam):
         if self.tss:
-            n_stop = bam.get_coverage(self.chromosome, self.move_pos(self.tss, -14), strand=self.strand)
-            n_stop = max(n_stop, bam.get_coverage(self.chromosome, self.move_pos(self.tss, -7), strand=self.strand))
-            n_stop = max(n_stop, bam.get_coverage(self.chromosome, self.tss, strand=self.strand))
-            return n_stop
-
-    def move_pos(self, pos, move):
-        if self.strand == '+':
-            return pos + move
-        return pos - move
+            n_stop_14 = bam.get_coverage(self.chromosome, move_pos(self.tss, -14, self.strand), strand=self.strand)
+            n_stop_7 = bam.get_coverage(self.chromosome, move_pos(self.tss, -7, self.strand), strand=self.strand)
+            n_stop = bam.get_coverage(self.chromosome, self.tss, strand=self.strand)
+            return max(n_stop_14, n_stop_7, n_stop)
 
     def _add_splice_site(self, start, stop):
         self.splice_sites.append('_'.join([str(x) for x in (start, stop)]))
+
+    def _fix_order(self, pos1, pos2):
+        return fix_order(pos1, pos2, self.strand)
 
     def distance_to_end(self, pos):
         distance = 0
@@ -142,13 +180,18 @@ class Transcript:
 class Exon:
 
     def __init__(self, number, transcript, start, stop):
-        self.number = number
         self.transcript = transcript
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
 #        assert len(self.transcript.exons) == number - 1
+        if number > 1:
+            pass
         self.start, self.stop = fix_order(start, stop, self.strand)
         self.transcript.add_exon(self)
+
+    @property
+    def gene(self):
+        return self.transcript.gene
 
     @property
     def strand(self):
@@ -161,6 +204,15 @@ class Exon:
     @property
     def len(self):
         return self.genomic_stop - self.genomic_start + 1
+
+    def get_sequence(self, start=None, stop=None):
+        if not start and not stop:
+            return self.gene.get_sequence(self.genomic_start, self.genomic_stop)
+        if not start or start < self.genomic_start:
+            start = self.genomic_start
+        if not stop or stop > self.genomic_stop:
+            stop = self.genomic_stop
+        return self.gene.get_sequence(start, stop)
 
     def distance_from_start(self, pos):
         return abs(self.start - pos)
@@ -199,9 +251,9 @@ class GenomicInterval:
 
     def bed(self, n_cols=6):
         if n_cols < 4:
-            return '\t'.join([str(x) for x in [self.chromosome, self.genomic_start - 1, self.genomic_stop]])
+            return '\t'.join([str(x) for x in [self.chromosome.name, self.genomic_start - 1, self.genomic_stop]])
         if self.strand and n_cols == 6:
-            return '\t'.join([str(x) for x in [self.chromosome, self.genomic_start - 1, self.genomic_stop,
+            return '\t'.join([str(x) for x in [self.chromosome.name, self.genomic_start - 1, self.genomic_stop,
                                                self.name, self.score, self.strand]])
 
     def includes(self, pos1, pos2=None):
@@ -264,7 +316,43 @@ class Sequence:
 
 
 def fix_order(pos1, pos2, strand):
+    """
+    returns pos1, pos2 given the order of the strand
+    if one of the two pos is None, returns twice the other
+    """
+    if not pos1:
+        if pos2:
+            return pos2, pos2
+        else:
+            return None, None
+    elif not pos2:
+        return pos1, pos1
     pos_sorted = sorted([pos1, pos2])
     if strand == '-':
         return pos_sorted[1], pos_sorted[0]
     return pos_sorted
+
+
+def comp_rev(seq):
+    """complementary reverse of a sequence (only ACTGN)"""
+    seq = seq.lower()
+    seq = seq[::-1]
+    seq = seq.replace('a', 'T')
+    seq = seq.replace('t', 'A')
+    seq = seq.replace('c', 'G')
+    seq = seq.replace('g', 'C')
+    seq = seq.replace('n', 'N')
+    return seq
+
+
+def fasta2seq(fasta):
+    """extracts the sequence from a multi-line fasta format"""
+    assert fasta.startswith('>')
+    samtools_splat = fasta.split('\n')
+    return ''.join(samtools_splat[1:])
+
+
+def move_pos(pos, move, strand):
+        if strand == '+':
+            return pos + move
+        return pos - move

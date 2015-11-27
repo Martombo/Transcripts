@@ -21,23 +21,22 @@ class Gtf:
         self.genome = ft.Genome()
 
     def get_genome(self):
-        """get genes dictionary
-        :returns genes dict where keys are gene_id
-        """
         with open(self.gtf_path) as f:
-            for linea in f:
+            for linea in f.readlines():
                 line_dic = self._parse_line(linea)
-                if not line_dic:
-                    continue
                 gene = self._get_gene(line_dic)
-                if self.gene_ids and line_dic['gene_id'] not in self.gene_ids:
+                if not line_dic or 'transcript_id' not in line_dic or \
+                        (self.gene_ids and line_dic['gene_id'] not in self.gene_ids):
                     continue
-                if line_dic['type'] == 'stop_codon':
-                    trans = self._get_transcript(line_dic, gene)
+                trans = self._get_transcript(line_dic, gene)
+                if line_dic['type'] == 'start_codon':
+                    trans.cds_start = min(line_dic['start'], line_dic['stop'])
+                elif line_dic['type'] == 'stop_codon':
                     trans.cds_stop = max(line_dic['start'], line_dic['stop'])
                 elif line_dic['type'] == 'exon':
-                    trans = self._get_transcript(line_dic, gene)
                     exon = ft.Exon(int(line_dic['exon_number']), trans, line_dic['start'], line_dic['stop'])
+                elif line_dic['type'] == 'CDS':
+                    trans.add_cds(line_dic['start'], line_dic['stop'])
         return self.genome
 
     @staticmethod
@@ -47,8 +46,8 @@ class Gtf:
         otherwise a new Transcript
         """
         trans_id = attr['transcript_id']
-        if trans_id in gene.transcripts:
-            return gene.transcripts[trans_id]
+        if trans_id in gene.trans_dict:
+            return gene.trans_dict[trans_id]
         return ft.Transcript(trans_id, gene)
 
     def _get_gene(self, dic):
@@ -56,6 +55,8 @@ class Gtf:
         returns a Gene from the Genome, if it's already present.
         otherwise a new Gene
         """
+        if not dic:
+            return
         chrom = self._get_chrom(dic['chr'])
         gene_id = dic['gene_id']
         if gene_id in chrom.genes_dict:

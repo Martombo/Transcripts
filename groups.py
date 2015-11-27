@@ -45,10 +45,10 @@ class TranscriptsGroup:
                 return trans_chrom[trans_j]
 
     def _add_tss(self, trans):
-        if trans.chromosome not in self.transcripts:
-            self.transcripts[trans.chromosome] = [trans]
+        if trans.chromosome.name not in self.transcripts:
+            self.transcripts[trans.chromosome.name] = [trans]
         else:
-            chrom_list = self.transcripts[trans.chromosome]
+            chrom_list = self.transcripts[trans.chromosome.name]
             insert_pos = len(chrom_list)
             for upstream_trans in chrom_list[::-1]:
                 if upstream_trans.tss < trans.tss:
