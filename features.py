@@ -7,10 +7,10 @@ class Genome:
         self.fasta_path = fasta_path
         self.chroms_dict = {}
 
-    def get_sequence(self, chrom, start, stop, strand):
+    def get_sequence(self, chrom, start_stop, strand):
         """finds the sequence of a genomic interval '1:387941-388099', '+' """
         assert self.fasta_path
-        pos_string = chrom + ':' + str(start) + '-' + str(stop)
+        pos_string = chrom + ':' + str(start_stop[0]) + '-' + str(start_stop[1])
         samtools_cmm = ['samtools', 'faidx', self.fasta_path, pos_string]
         samtools_out = sp.check_output(samtools_cmm).decode()
         seq = fasta2seq(samtools_out)
@@ -45,8 +45,8 @@ class Chromosome:
             self.genome = genome
             genome.chroms_dict[name] = self
 
-    def get_sequence(self, start, stop, strand):
-        return self.genome.get_sequence(self.name, start, stop, strand)
+    def get_sequence(self, start_stop, strand):
+        return self.genome.get_sequence(self.name, start_stop, strand)
 
     @property
     def genes(self):
@@ -70,15 +70,13 @@ class Gene:
         self.strand = strand
         self.trans_dict = {}
 
-    def get_sequence(self, start, stop):
-        if start >= stop:
-            return ''
-        return self.chromosome.get_sequence(start, stop, self.strand)
-
     @property
     def transcripts(self):
         for trans in self.trans_dict.values():
             yield trans
+
+    def get_sequence(self, start_stop):
+        return self.chromosome.get_sequence(start_stop, self.strand)
 
 
 class Transcript:
@@ -89,7 +87,7 @@ class Transcript:
         self.gene.trans_dict[id] = self
         self.exons = []
         self.splice_sites = []
-        self.cds_start, self.cds_stop = self._fix_order(cds_start, cds_stop)
+        self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
 
     @property
     def n_splice_sites(self):
@@ -120,19 +118,21 @@ class Transcript:
             return 0
         return self.distance_from_start(self.cds_start)
 
-    def get_sequence(self, start=None, stop=None):
-        return ''.join([exon.get_sequence(start, stop) for exon in self.exons])
+    def get_sequence(self):
+        """returns the whole transcript sequence"""
+        return ''.join([exon.get_sequence() for exon in self.exons])
 
     def get_5utr_seq(self):
         if self.cds_start:
-            return self.get_sequence(stop=self.cds_start)
+            return ''.join([exon.get_seq_from_start(self.cds_start) for exon in self.exons])
 
     def get_3utr_seq(self):
         if self.cds_stop:
-            return self.get_sequence(start=self.cds_stop)
+            return ''.join([exon.get_seq_to_stop(self.cds_stop) for exon in self.exons])
+    # if stop before exon should not return anything
 
     def get_exons_from_site(self, start, stop):
-        query = '_'.join([str(x) for x in self._fix_order(start, stop)])
+        query = '_'.join([str(x) for x in fix_order(start, stop, self.strand)])
         for site_n in range(self.n_splice_sites):
             if self.splice_sites[site_n] == query:
                 return self.exons[site_n], self.exons[site_n + 1]
@@ -144,9 +144,9 @@ class Transcript:
             self._add_splice_site(self.exons[prev_exon_i].stop, exon.start)
 
     def add_cds(self, start, stop):
-        start, stop = self._fix_order(start, stop)
-        self.cds_start = self._fix_order(self.cds_start, start)[0]
-        self.cds_stop = self._fix_order(self.cds_stop, stop)[1]
+        start, stop = fix_order(start, stop, self.strand)
+        self.cds_start = fix_order(self.cds_start, start, self.strand)[0]
+        self.cds_stop = fix_order(self.cds_stop, stop, self.strand)[1]
 
     def get_stop_counts(self, bam):
         if self.tss:
@@ -157,9 +157,6 @@ class Transcript:
 
     def _add_splice_site(self, start, stop):
         self.splice_sites.append('_'.join([str(x) for x in (start, stop)]))
-
-    def _fix_order(self, pos1, pos2):
-        return fix_order(pos1, pos2, self.strand)
 
     def distance_to_end(self, pos):
         distance = 0
@@ -183,7 +180,7 @@ class Exon:
         self.transcript = transcript
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
-#        assert len(self.transcript.exons) == number - 1
+        assert len(self.transcript.exons) == number - 1
         if number > 1:
             pass
         self.start, self.stop = fix_order(start, stop, self.strand)
@@ -205,14 +202,31 @@ class Exon:
     def len(self):
         return self.genomic_stop - self.genomic_start + 1
 
-    def get_sequence(self, start=None, stop=None):
-        if not start and not stop:
-            return self.gene.get_sequence(self.genomic_start, self.genomic_stop)
-        if not start or start < self.genomic_start:
-            start = self.genomic_start
-        if not stop or stop > self.genomic_stop:
-            stop = self.genomic_stop
-        return self.gene.get_sequence(start, stop)
+    def get_sequence(self):
+        """returns the whole exon sequence"""
+        return self.gene.get_sequence((self.genomic_start, self.genomic_stop))
+
+    def get_seq_from_start(self, stop):
+        """
+        returns the exon sequence from start to stop,
+        the whole sequence if stop is after the exon
+        or '' if stop is before
+        """
+        stop = fix_order(self.stop, stop, self.strand)[0]
+        if not self.includes(stop):
+            return ''
+        return self.gene.get_sequence(sorted((self.start, stop)))
+
+    def get_seq_to_stop(self, start):
+        """
+        returns the exon sequence from start to stop,
+        the whole sequence if stop is before exon
+        or '' if start is after
+        """
+        start = fix_order(self.start, start, self.strand)[1]
+        if not self.includes(start):
+            return ''
+        return self.gene.get_sequence(sorted((start, self.stop)))
 
     def distance_from_start(self, pos):
         return abs(self.start - pos)

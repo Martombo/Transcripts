@@ -48,6 +48,12 @@ class TestExons(ut.TestCase):
         exon1 = ft.Exon(1, trans1, 100, 200)
         self.assertEqual(70, exon1.distance_from_start(130))
 
+    def test_includes(self):
+        trans1 = ft.Transcript('t1', self.gene1_rev)
+        exon1 = ft.Exon(1, trans1, 100, 200)
+        self.assertTrue(exon1.includes(exon1.start))
+        self.assertTrue(exon1.includes(exon1.genomic_stop))
+
 
 class TestTranscripts(ut.TestCase):
 
@@ -70,6 +76,32 @@ class TestTranscripts(ut.TestCase):
         trans1 = ft.Transcript('t1', self.gene1)
         trans2 = ft.Transcript('t2', self.gene1)
         self.assertEquals(2, len(self.gene1.trans_dict.values()))
+
+    def test_add_cds(self):
+        trans = ft.Transcript('t', self.gene1)
+        trans.add_cds(100, 200)
+        self.assertEqual(100, trans.cds_start)
+        self.assertEqual(200, trans.cds_stop)
+
+    def test_add_cds_rev(self):
+        trans = ft.Transcript('t', self.gene2)
+        trans.add_cds(100, 200)
+        self.assertEqual(200, trans.cds_start)
+        self.assertEqual(100, trans.cds_stop)
+
+    def test_add_2cds(self):
+        trans = ft.Transcript('t', self.gene1)
+        trans.add_cds(100, 200)
+        trans.add_cds(500, 600)
+        self.assertEqual(100, trans.cds_start)
+        self.assertEqual(600, trans.cds_stop)
+
+    def test_add_2cds_rev(self):
+        trans = ft.Transcript('t', self.gene2)
+        trans.add_cds(500, 600)
+        trans.add_cds(100, 200)
+        self.assertEqual(600, trans.cds_start)
+        self.assertEqual(100, trans.cds_stop)
 
 
 class TestGene(ut.TestCase):
@@ -172,9 +204,6 @@ class TestGenomicInterval(ut.TestCase):
 
     chr1 = ft.Chromosome('1')
     gi = ft.GenomicInterval(chr1, 1, 100)
-
-    def test_len(self):
-        self.assertEquals(100, self.gi.len)
 
     def test_setup_quantiles_None(self):
         gi = ft.GenomicInterval(1, 1, 100)
