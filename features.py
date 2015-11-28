@@ -1,4 +1,5 @@
 import subprocess as sp
+import os
 
 
 class Genome:
@@ -108,15 +109,22 @@ class Transcript:
         return self.distance_to_end(self.cds_stop)
 
     @property
-    def tss(self):
-        if len(self.exons) > 0:
-            return self.exons[0].start
-
-    @property
     def five_utr_len(self):
         if not self.cds_start:
             return 0
         return self.distance_from_start(self.cds_start)
+
+    @property
+    def cds_len(self):
+        if not (self.cds_start and self.cds_stop):
+            return 0
+        after_stop = move_pos(self.cds_stop, +2, self.strand)
+        return self.distance_to_end(self.cds_start) - self.distance_to_end(after_stop)
+
+    @property
+    def tss(self):
+        if len(self.exons) > 0:
+            return self.exons[0].start
 
     def get_sequence(self):
         """returns the whole transcript sequence"""
@@ -128,8 +136,8 @@ class Transcript:
 
     def get_3utr_seq(self):
         if self.cds_stop:
-            return ''.join([exon.get_seq_to_stop(self.cds_stop) for exon in self.exons])
-    # if stop before exon should not return anything
+            first_3utr = move_pos(self.cds_stop, +3, self.strand)
+            return ''.join([exon.get_seq_to_stop(first_3utr) for exon in self.exons])
 
     def get_exons_from_site(self, start, stop):
         query = '_'.join([str(x) for x in fix_order(start, stop, self.strand)])
@@ -327,6 +335,28 @@ class Sequence:
     def is_stop(self, pos):
         assert pos >= 0
         return self.seq[pos:pos+3] in ['TAA', 'TGA', 'TAG']
+
+    def run_RNAplfold(self):
+        p1 = sp.Popen(['echo', self.seq], stdout=sp.PIPE)
+        p2 = sp.Popen(['RNAplfold', '-o'], stdin=p1.stdout, stdout=sp.PIPE)
+        p1.stdout.close()
+        p2.communicate()
+        return self._parse_RNAplfold()
+
+    def _parse_RNAplfold(self):
+        fold_array, fout = [0] * self.len, 'plfold_basepairs'
+        for linea in open(fout):
+            splat = [x for x in linea.split(' ') if x]
+            fold_array = self._add_fold_score(fold_array, splat[0], splat[2])
+            fold_array = self._add_fold_score(fold_array, splat[1], splat[2])
+        os.remove(fout)
+        return [round(x, 3) for x in fold_array]
+
+    def _add_fold_score(self, fold_array, pos_str, score):
+        pos = int(pos_str) - 1
+        if 0 <= pos < len(fold_array):
+            fold_array[pos] += float(score)
+        return fold_array
 
 
 def fix_order(pos1, pos2, strand):

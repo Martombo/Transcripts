@@ -305,6 +305,11 @@ class TestSequence(ut.TestCase):
         self.assertEqual(14, orfs[1][0])
         self.assertEqual(17, orfs[1][1])
 
+    def test_rnaplfold(self):
+        seq = ft.Sequence('aaaaaaaaagggggggggttttttttt')
+        folds = seq.run_RNAplfold()
+        self.assertGreater(sum(folds), 0)
+
 
 class TestReaderGtf(ut.TestCase):
 
