@@ -118,8 +118,7 @@ class Transcript:
     def cds_len(self):
         if not (self.cds_start and self.cds_stop):
             return 0
-        after_stop = move_pos(self.cds_stop, +2, self.strand)
-        return self.distance_to_end(self.cds_start) - self.distance_to_end(after_stop)
+        return self.distance_to_end(self.cds_start) - self.three_utr_len
 
     @property
     def tss(self):
@@ -344,19 +343,14 @@ class Sequence:
         return self._parse_RNAplfold()
 
     def _parse_RNAplfold(self):
-        fold_array, fout = [0] * self.len, 'plfold_basepairs'
+        tot_score, fout = 0, 'plfold_basepairs'
+        if not os.path.isfile(fout):
+            return []
         for linea in open(fout):
             splat = [x for x in linea.split(' ') if x]
-            fold_array = self._add_fold_score(fold_array, splat[0], splat[2])
-            fold_array = self._add_fold_score(fold_array, splat[1], splat[2])
+            tot_score += float(splat[2])
         os.remove(fout)
-        return [round(x, 3) for x in fold_array]
-
-    def _add_fold_score(self, fold_array, pos_str, score):
-        pos = int(pos_str) - 1
-        if 0 <= pos < len(fold_array):
-            fold_array[pos] += float(score)
-        return fold_array
+        return tot_score
 
 
 def fix_order(pos1, pos2, strand):
