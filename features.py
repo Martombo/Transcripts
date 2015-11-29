@@ -158,9 +158,9 @@ class Transcript:
 
     def get_stop_counts(self, bam):
         if self.tss:
-            n_stop_14 = bam.get_coverage(self.chromosome, move_pos(self.tss, -14, self.strand), strand=self.strand)
-            n_stop_7 = bam.get_coverage(self.chromosome, move_pos(self.tss, -7, self.strand), strand=self.strand)
-            n_stop = bam.get_coverage(self.chromosome, self.tss, strand=self.strand)
+            n_stop_14 = bam.get_coverage(self.chromosome, move_pos(self.tss, -14, self.strand) - 1, strand=self.strand)
+            n_stop_7 = bam.get_coverage(self.chromosome, move_pos(self.tss, -7, self.strand) - 1, strand=self.strand)
+            n_stop = bam.get_coverage(self.chromosome, self.tss - 1, strand=self.strand)
             return max(n_stop_14, n_stop_7, n_stop)
 
     def _add_splice_site(self, start, stop):
