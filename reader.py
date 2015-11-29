@@ -10,7 +10,7 @@ class Gtf:
     def __init__(self, gtf_file, gene_ids=None, test=False):
         """
         :param gtf_file: path to gtf file
-        :param gene_ids: all genes whose id is not in this list are discarded
+        :param gene_ids: genes to be considered, None: all genes
         :param test: for testing
         """
         if not test:
@@ -21,6 +21,7 @@ class Gtf:
         self.genome = ft.Genome()
 
     def get_genome(self):
+        """returns a Genome object, from an Ensembl gtf file"""
         with open(self.gtf_path) as f:
             for linea in f.readlines():
                 line_dic = self._parse_line(linea)
@@ -100,11 +101,12 @@ class Gtf:
         return dic
 
 
-class Bam():
+class Bam:
     """utility functions to parse bam"""
 
     def __init__(self, path=None, reads_orientation='forward', test=False):
         """
+        positions are 0-based
         :param reads_orientation: either 'forward', 'reverse' or 'mixed'
         """
         if not test:
@@ -124,8 +126,8 @@ class Bam():
         get the number of reads in region
         reads is counted even if only 1 base overlaps region
         :param chrom: str chromosome name
-        :param start: int start
-        :param stop: int stop
+        :param start: int start 0-based
+        :param stop: int stop 0-based
         :param strand: '+', '-' or None
         :param min_qual: default TopHat: only uniquely mapped reads
         """
@@ -140,6 +142,7 @@ class Bam():
         return n_reads
 
     def determine_strand(self, read):
+        """determines the annotation strand a read would match"""
         if self.reads_orientation == 'mixed':
             return 'NA'
         strand_bool = True
@@ -150,3 +153,25 @@ class Bam():
         if read.is_read2:
             strand_bool = not strand_bool
         return '+' if strand_bool else '-'
+
+
+class BedGraph:
+    """utility functions to parse BedGraph"""
+
+    def __init__(self, path, chromosomes=None, strand=None, test=False):
+        """
+        positions are 0-based
+        """
+        if not test:
+            assert os.path.isfile(path)
+        self.path = path
+
+    def iter(self):
+        for linea in open(self.path, 'r'):
+            yield self._parse_line(linea)
+
+    @staticmethod
+    def _parse_line(linea, delim='\t'):
+        splat = linea.rstrip('\n').split(delim)
+        assert len(splat) == 4
+        return {'chrom': splat[0], 'start': int(splat[1]), 'stop': int(splat[2]), 'score':float(splat[3])}
