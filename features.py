@@ -336,20 +336,19 @@ class Sequence:
         return self.seq[pos:pos+3] in ['TAA', 'TGA', 'TAG']
 
     def run_RNAplfold(self):
-        p1 = sp.Popen(['echo', self.seq], stdout=sp.PIPE)
-        p2 = sp.Popen(['RNAplfold', '-o'], stdin=p1.stdout, stdout=sp.PIPE)
+        p1 = sp.Popen(['echo', self.seq], stdout=sp.PIPE, close_fds=True)
+        p2 = sp.Popen(['RNAplfold', '-o'], stdin=p1.stdout, stdout=sp.PIPE, close_fds=True)
         p1.stdout.close()
         p2.communicate()
         return self._parse_RNAplfold()
 
     def _parse_RNAplfold(self):
         tot_score, fout = 0, 'plfold_basepairs'
-        if not os.path.isfile(fout):
-            return []
-        for linea in open(fout):
-            splat = [x for x in linea.split(' ') if x]
-            tot_score += float(splat[2])
-        os.remove(fout)
+        if os.path.isfile(fout):
+            for linea in open(fout):
+                splat = [x for x in linea.split(' ') if x]
+                tot_score += float(splat[2])
+            os.remove(fout)
         return tot_score
 
 
