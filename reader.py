@@ -7,7 +7,7 @@ import os
 class Gtf:
     """utility functions to parse gtf"""
 
-    def __init__(self, gtf_file, gene_ids=None, test=False):
+    def __init__(self, gtf_file, gene_ids=None, gene_biotypes=None, test=False):
         """
         :param gtf_file: path to gtf file
         :param gene_ids: genes to be considered, None: all genes
@@ -18,6 +18,7 @@ class Gtf:
             assert os.path.isfile(gtf_file)
         self.gtf_path = gtf_file
         self.gene_ids = gene_ids
+        self.gene_biotype = gene_biotypes
         self.genome = ft.Genome()
 
     def get_genome(self):
@@ -27,7 +28,8 @@ class Gtf:
                 line_dic = self._parse_line(linea)
                 gene = self._get_gene(line_dic)
                 if not line_dic or 'transcript_id' not in line_dic or \
-                        (self.gene_ids and line_dic['gene_id'] not in self.gene_ids):
+                        (self.gene_ids and line_dic['gene_id'] not in self.gene_ids) or \
+                        (self.gene_biotype and line_dic['gene_biotype'] not in self.gene_biotype):
                     continue
                 trans = self._get_transcript(line_dic, gene)
                 if line_dic['type'] == 'start_codon':
