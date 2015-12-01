@@ -1,6 +1,5 @@
 import unittest as ut
 import features as ft
-import groups as gr
 import reader as rd
 import pysam
 
@@ -133,71 +132,71 @@ class TestChromosome(ut.TestCase):
         self.assertEqual(3, n)
 
 
-class TestTranscriptsGroup(ut.TestCase):
-
-    chr1 = ft.Chromosome('chr1')
-    gene = ft.Gene('g1', chr1, 'gene1', '+')
-    trans_100 = ft.Transcript('t1', gene)
-    exon_100 = ft.Exon(1, trans_100, 100, 200)
-    trans_130 = ft.Transcript('t2', gene)
-    exon_130 = ft.Exon(1, trans_130, 130, 230)
-    gene_rev = ft.Gene('g2', chr1, 'gene2', '-')
-    trans_rev_250 = ft.Transcript('t3', gene_rev)
-    exon_rev_250 = ft.Exon(1, trans_rev_250, 100, 250)
-    trans_rev_30 = ft.Transcript('t4', gene_rev)
-    exon_30 = ft.Exon(1, trans_rev_30, 10, 30)
-
-    def test_add_1tss(self):
-        trans_group = gr.TranscriptsGroup()
-        trans_group._add_tss(self.trans_100)
-        self.assertEquals(1, len(trans_group.transcripts['chr1']))
-
-    def test_add_2tss(self):
-        trans_group = gr.TranscriptsGroup()
-        trans_group._add_tss(self.trans_100)
-        trans_group._add_tss(self.trans_130)
-        self.assertEquals(2, len(trans_group.transcripts['chr1']))
-        self.assertEquals(100, trans_group.transcripts['chr1'][0].tss)
-        self.assertEquals(130, trans_group.transcripts['chr1'][1].tss)
-
-    def test_add_2tss_order(self):
-        trans_group = gr.TranscriptsGroup()
-        trans_group._add_tss(self.trans_130)
-        trans_group._add_tss(self.trans_100)
-        self.assertEquals(100, trans_group.transcripts['chr1'][0].tss)
-        self.assertEquals(130, trans_group.transcripts['chr1'][1].tss)
-
-    def test_add_3tss_rev(self):
-        trans_group = gr.TranscriptsGroup()
-        trans_group._add_tss(self.trans_100)
-        trans_group._add_tss(self.trans_rev_250)
-        trans_group._add_tss(self.trans_rev_30)
-        self.assertEquals(3, len(trans_group.transcripts['chr1']))
-        self.assertEquals(30, trans_group.transcripts['chr1'][0].tss)
-        self.assertEquals(100, trans_group.transcripts['chr1'][1].tss)
-        self.assertEquals(250, trans_group.transcripts['chr1'][2].tss)
-
-    def test_get_antisense_in_range(self):
-        trans_group = gr.TranscriptsGroup()
-        trans_group._add_tss(self.trans_100)
-        trans_group._add_tss(self.trans_rev_250)
-        antisense = trans_group._as_in_range(range(1, 2), trans_group.transcripts['chr1'], '+', 'lulli')
-        self.assertEquals(self.trans_rev_250, antisense)
-
-    def test_get_closest_antisense(self):
-        trans_group = gr.TranscriptsGroup()
-        trans_group._add_tss(self.trans_100)
-        trans_group._add_tss(self.trans_rev_250)
-        antisense = trans_group._get_closest_antisense(self.trans_100, 0, trans_group.transcripts['chr1'])
-        self.assertEquals(self.trans_rev_250, antisense)
-
-    def test_get_closest_antisense2(self):
-        trans_group = gr.TranscriptsGroup()
-        trans_group._add_tss(self.trans_100)
-        trans_group._add_tss(self.trans_rev_250)
-        trans_group._add_tss(self.trans_rev_30)
-        antisense = trans_group._get_closest_antisense(self.trans_100, 1, trans_group.transcripts['chr1'])
-        self.assertEquals(self.trans_rev_30, antisense)
+# class TestTranscriptsGroup(ut.TestCase):
+#
+#     chr1 = ft.Chromosome('chr1')
+#     gene = ft.Gene('g1', chr1, 'gene1', '+')
+#     trans_100 = ft.Transcript('t1', gene)
+#     exon_100 = ft.Exon(1, trans_100, 100, 200)
+#     trans_130 = ft.Transcript('t2', gene)
+#     exon_130 = ft.Exon(1, trans_130, 130, 230)
+#     gene_rev = ft.Gene('g2', chr1, 'gene2', '-')
+#     trans_rev_250 = ft.Transcript('t3', gene_rev)
+#     exon_rev_250 = ft.Exon(1, trans_rev_250, 100, 250)
+#     trans_rev_30 = ft.Transcript('t4', gene_rev)
+#     exon_30 = ft.Exon(1, trans_rev_30, 10, 30)
+#
+#     def test_add_1tss(self):
+#         trans_group = gr.TranscriptsGroup()
+#         trans_group._add_tss(self.trans_100)
+#         self.assertEquals(1, len(trans_group.transcripts['chr1']))
+#
+#     def test_add_2tss(self):
+#         trans_group = gr.TranscriptsGroup()
+#         trans_group._add_tss(self.trans_100)
+#         trans_group._add_tss(self.trans_130)
+#         self.assertEquals(2, len(trans_group.transcripts['chr1']))
+#         self.assertEquals(100, trans_group.transcripts['chr1'][0].tss)
+#         self.assertEquals(130, trans_group.transcripts['chr1'][1].tss)
+#
+#     def test_add_2tss_order(self):
+#         trans_group = gr.TranscriptsGroup()
+#         trans_group._add_tss(self.trans_130)
+#         trans_group._add_tss(self.trans_100)
+#         self.assertEquals(100, trans_group.transcripts['chr1'][0].tss)
+#         self.assertEquals(130, trans_group.transcripts['chr1'][1].tss)
+#
+#     def test_add_3tss_rev(self):
+#         trans_group = gr.TranscriptsGroup()
+#         trans_group._add_tss(self.trans_100)
+#         trans_group._add_tss(self.trans_rev_250)
+#         trans_group._add_tss(self.trans_rev_30)
+#         self.assertEquals(3, len(trans_group.transcripts['chr1']))
+#         self.assertEquals(30, trans_group.transcripts['chr1'][0].tss)
+#         self.assertEquals(100, trans_group.transcripts['chr1'][1].tss)
+#         self.assertEquals(250, trans_group.transcripts['chr1'][2].tss)
+#
+#     def test_get_antisense_in_range(self):
+#         trans_group = gr.TranscriptsGroup()
+#         trans_group._add_tss(self.trans_100)
+#         trans_group._add_tss(self.trans_rev_250)
+#         antisense = trans_group._as_in_range(range(1, 2), trans_group.transcripts['chr1'], '+', 'lulli')
+#         self.assertEquals(self.trans_rev_250, antisense)
+#
+#     def test_get_closest_antisense(self):
+#         trans_group = gr.TranscriptsGroup()
+#         trans_group._add_tss(self.trans_100)
+#         trans_group._add_tss(self.trans_rev_250)
+#         antisense = trans_group._get_closest_antisense(self.trans_100, 0, trans_group.transcripts['chr1'])
+#         self.assertEquals(self.trans_rev_250, antisense)
+#
+#     def test_get_closest_antisense2(self):
+#         trans_group = gr.TranscriptsGroup()
+#         trans_group._add_tss(self.trans_100)
+#         trans_group._add_tss(self.trans_rev_250)
+#         trans_group._add_tss(self.trans_rev_30)
+#         antisense = trans_group._get_closest_antisense(self.trans_100, 1, trans_group.transcripts['chr1'])
+#         self.assertEquals(self.trans_rev_30, antisense)
 
 
 class TestGenomicInterval(ut.TestCase):

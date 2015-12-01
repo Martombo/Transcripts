@@ -41,13 +41,51 @@ class Chromosome:
 
     def __init__(self, name, genome=None):
         self.name = name
-        self.genes_dict = {}
+        self.genes_dict, self.ordered_transs = {}, []
         if genome:
             self.genome = genome
             genome.chroms_dict[name] = self
 
     def get_sequence(self, start_stop, strand):
         return self.genome.get_sequence(self.name, start_stop, strand)
+
+    def ordered_transcripts_tss(self):
+        for trans in self.transcripts:
+            insert_pos = len(self.ordered_transs)
+            for upstream_trans in self.ordered_transs[::-1]:
+                if upstream_trans.tss < trans.tss:
+                    self.ordered_transs[insert_pos:insert_pos] = [trans]
+                    break
+                insert_pos -= 1
+            else:
+                self.ordered_transs[0:0] = [trans]
+        return self.ordered_transs
+
+    def get_antisense_transcripts(self):
+        antisenses, trans_i = [], 0
+        transcripts = list(self.transcripts)
+        for trans in transcripts:
+            antisenses.append([trans, self._get_closest_antisense(trans, trans_i, transcripts)])
+            trans_i += 1
+        return antisenses
+
+    def _get_closest_antisense(self, trans, trans_i, trans_chrom):
+        strand = trans.strand
+        as_downstream = self._antisense_in_range(range(trans_i + 1, len(trans_chrom)), trans_chrom, strand, trans.gene.id)
+        as_upstream = self._antisense_in_range(range(trans_i - 1, -1, -1), trans_chrom, strand, trans.gene.id)
+        if not as_upstream:
+            return as_downstream
+        if not as_downstream:
+            return as_upstream
+        if abs(trans.tss - as_downstream.tss) < abs(trans.tss - as_upstream.tss):
+            return as_downstream
+        return as_upstream
+
+    @staticmethod
+    def _antisense_in_range(trans_range, trans_chrom, strand, gene_id):
+        for trans_j in trans_range:
+            if trans_chrom[trans_j] != strand and trans_chrom[trans_j].gene.id != gene_id:
+                return trans_chrom[trans_j]
 
     @property
     def genes(self):
