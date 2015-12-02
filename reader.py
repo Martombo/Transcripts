@@ -160,17 +160,24 @@ class Bam:
 class BedGraph:
     """utility functions to parse BedGraph"""
 
-    def __init__(self, path, chromosomes=None, strand=None, test=False):
-        """
-        positions are 0-based
-        """
+    def __init__(self, path, strand, genome=None, test=False):
+        """positions are 0-based"""
         if not test:
             assert os.path.isfile(path)
         self.path = path
+        self.strand = strand
+        if genome:
+            self.chroms_dict = genome.chroms_dict
 
     def iter(self):
+        """returns 1-based positions and scores"""
         for linea in open(self.path, 'r'):
-            yield self._parse_line(linea)
+            interval = self._parse_line(linea)
+            if interval['score'] < 0:
+                continue
+            for base in range(interval['start'] + 1, interval['stop']):
+                yield base, interval['score']
+
 
     @staticmethod
     def _parse_line(linea, delim='\t'):

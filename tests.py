@@ -202,16 +202,16 @@ class TestChromosome(ut.TestCase):
 class TestGenomicInterval(ut.TestCase):
 
     chr1 = ft.Chromosome('1')
-    gi = ft.GenomicInterval(chr1, 1, 100)
+    gi = ft.GenomicLayer(chr1, 1, 100)
 
     def test_setup_quantiles_None(self):
-        gi = ft.GenomicInterval(1, 1, 100)
+        gi = ft.GenomicLayer(1, 1, 100)
         quant_width, quants = gi._setup_quantiles(None)
         self.assertEquals(0, quant_width)
         self.assertEquals([], quants)
 
     def test_setup_quantiles(self):
-        gi = ft.GenomicInterval(1, 1, 100)
+        gi = ft.GenomicLayer(1, 1, 100)
         quant_width, quants = gi._setup_quantiles(5)
         self.assertEquals(20, quant_width)
         self.assertEquals(5, len(quants))
@@ -223,31 +223,31 @@ class TestGenomicInterval(ut.TestCase):
         self.assertEquals(100, self.gi._distance_from_start(101))
 
     def test_distance_from_start_rev(self):
-        gi = ft.GenomicInterval(1, 1, 100, strand = '-')
+        gi = ft.GenomicLayer(1, 1, 100, strand ='-')
         self.assertEquals(1, gi._distance_from_start(99))
         self.assertEquals(100, gi._distance_from_start(0))
 
     def test_quantiles_add(self):
-        gi = ft.GenomicInterval(1, 1, 100)
+        gi = ft.GenomicLayer(1, 1, 100)
         for k in range(1,101):
             gi.add(k)
         for j in gi.quantiles:
             self.assertEquals(2, j)
 
     def test_quantiles_normalize_empty(self):
-        gi = ft.GenomicInterval(1, 1, 100)
+        gi = ft.GenomicLayer(1, 1, 100)
         gi.normalize_quantiles()
         self.assertEquals(0, sum(self.gi.quantiles))
 
     def test_quantiles_normalize_divisor(self):
-        gi = ft.GenomicInterval(1, 1, 100, n_quantiles=10)
+        gi = ft.GenomicLayer(1, 1, 100, n_quantiles=10)
         gi.add(1)
         gi.normalize_quantiles(divisor = 10)
         self.assertEquals(0.1, gi.quantiles[0])
         self.assertEquals(0.1, sum(gi.quantiles))
 
     def test_quantiles_normalize(self):
-        gi = ft.GenomicInterval(1, 1, 100, n_quantiles=50)
+        gi = ft.GenomicLayer(1, 1, 100, n_quantiles=50)
         gi.add(1)
         gi.add(1)
         gi.add(3)
@@ -307,7 +307,7 @@ class TestSequence(ut.TestCase):
     def test_rnaplfold(self):
         seq = ft.Sequence('aaaaaaaaagggggggggttttttttt')
         folds = seq.run_RNAplfold()
-        self.assertGreater(sum(folds), 0)
+        self.assertGreater(folds, 0)
 
 
 class TestReaderGtf(ut.TestCase):

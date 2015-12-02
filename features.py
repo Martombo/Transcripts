@@ -45,6 +45,7 @@ class Chromosome:
         if genome:
             self.genome = genome
             genome.chroms_dict[name] = self
+        self.coverage = {'+': {}, '-': {}}
 
     def get_sequence(self, start_stop, strand):
         return self.genome.get_sequence(self.name, start_stop, strand)
@@ -71,21 +72,23 @@ class Chromosome:
 
     def _get_closest_antisense(self, trans, trans_i, trans_chrom):
         strand = trans.strand
-        as_downstream = self._antisense_in_range(range(trans_i + 1, len(trans_chrom)), trans_chrom, strand, trans.gene.id)
-        as_upstream = self._antisense_in_range(range(trans_i - 1, -1, -1), trans_chrom, strand, trans.gene.id)
-        if not as_upstream:
-            return as_downstream
-        if not as_downstream:
-            return as_upstream
+        range_downstream = range(trans_i + 1, len(trans_chrom))
+        range_upstream = range(trans_i - 1, -1, -1)
+        as_downstream = self._closest_in_range(range_downstream, trans_chrom, not_gene=trans.gene.id, not_strand=strand)
+        as_upstream = self._closest_in_range(range_upstream, trans_chrom, not_gene=trans.gene.id, not_strand=strand)
         if abs(trans.tss - as_downstream.tss) < abs(trans.tss - as_upstream.tss):
             return as_downstream
         return as_upstream
 
     @staticmethod
-    def _antisense_in_range(trans_range, trans_chrom, strand, gene_id):
+    def _closest_in_range(trans_range, trans_chrom, not_gene, strand=None, not_strand=None):
+        """returns the closest transcript from trans_chrom in the specified range and strand"""
         for trans_j in trans_range:
-            if trans_chrom[trans_j] != strand and trans_chrom[trans_j].gene.id != gene_id:
+            if trans_chrom[trans_j] != strand and trans_chrom[trans_j].gene.id != not_gene:
                 return trans_chrom[trans_j]
+        trans_null = Transcript('null')
+        trans_null.tss = -1000000
+        return trans_null
 
     @property
     def genes(self):
@@ -120,12 +123,11 @@ class Gene:
 
 class Transcript:
 
-    def __init__(self, id, gene, cds_start=None, cds_stop=None):
+    def __init__(self, id, gene=None, cds_start=None, cds_stop=None, tss=None):
         self.id = id
         self.gene = gene
         self.gene.trans_dict[id] = self
-        self.exons = []
-        self.splice_sites = []
+        self.exons, self.splice_sites = [], []
         self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
 
     @property
@@ -287,61 +289,69 @@ class Exon:
         return False
 
 
-class GenomicInterval:
+class GenomicOverlay:
 
-    def __init__(self, chromosome, start, stop, name='', score='', strand='', n_quantiles=50):
-        """
-        positions are 1-based
-        """
+    def __init__(self, chromosome, n_quantiles=50):
+        """for the moment it deals only with continuous intervals"""
         self.chromosome = chromosome
-        self.start, self.stop = fix_order(start, stop, strand)
-        self.genomic_start = min(start, stop)
-        self.genomic_stop = max(start, stop)
-        self.name, self.score, self.strand = name, score, strand
-        self.quantile_width, self.quantiles = self._setup_quantiles(n_quantiles)
-        if strand and not name:
-            self.name = 'interval'
-        if strand and not score:
-            self.score = 0
+        self.n_quantiles = n_quantiles
+        self.quantiles = [0] * n_quantiles
+        self.points = {'+': {}, '-': {}}
+        self.layers = []
+
+    def add_bedgraph(self, bg):
+        """adds a score (eg: coverage) at pos, strand"""
+        points = self.points[bg.strand]
+        for base, score in bg.iter():
+            if base in points:
+                points[base].score = score
+
+    def get_point(self, pos, strand):
+        """returns Point from self.points_dict, or a new Point if not present"""
+        if pos in self.points[strand]:
+            return self.points[strand][pos]
+        point = GenomicPoint(pos, strand, 0)
+        self.points[strand][pos] = point
+        return point
+
+
+class GenomicLayer:
+
+    def __init__(self, start, stop, strand, overlay):
+        self.start, self.stop = start, stop
+        self.strand, self.overlay = strand, overlay
+        self.overlay.layers.append(self)
+        self.quantile_width = self.len / float(overlay.n_quantiles)
+        self.points = self._set_points()
 
     @property
     def len(self):
-        return self.genomic_stop - self.genomic_start + 1
+        return abs(self.stop - self.start)
 
-    def bed(self, n_cols=6):
-        if n_cols < 4:
-            return '\t'.join([str(x) for x in [self.chromosome.name, self.genomic_start - 1, self.genomic_stop]])
-        if self.strand and n_cols == 6:
-            return '\t'.join([str(x) for x in [self.chromosome.name, self.genomic_start - 1, self.genomic_stop,
-                                               self.name, self.score, self.strand]])
+    def _set_points(self):
+        """sets the points, based on the overlay"""
+        for pos in range(self.start, self.stop):
+            n_quantile = self._position_to_quantile(pos)
+            yield self.overlay.get_point(pos, self.strand, n_quantile)
 
-    def includes(self, pos1, pos2=None):
-        if self.genomic_start < pos1 < self.genomic_stop:
-            return True
-        if pos2 and self.genomic_start < pos2 < self.genomic_stop:
-            return True
-        return False
-
-    def normalize_quantiles(self, divisor=None):
+    def normalize_point_score(self, divisor=None):
         if not divisor:
-            divisor = max(self.quantiles + [1])
+            divisor = max([x.score for x in self.points] + [1])
         divisor = float(divisor)
-        for i in range(len(self.quantiles)):
-            self.quantiles[i] /= divisor
+        for point in self.points:
+            point.score /= divisor
 
-    def add(self, pos, n=1):
-        n_bin = int(self._distance_from_start(pos) / self.quantile_width)
-        self.quantiles[n_bin] += n
+    def _position_to_quantile(self, pos):
+        """determines the bin number, given the position (based on absolute dis from start)"""
+        return int(abs(pos - self.start) / self.quantile_width)
 
-    def _distance_from_start(self, pos):
-        return abs(pos - self.start)
 
-    def _setup_quantiles(self, n_quantiles):
-        if not n_quantiles:
-            return 0, []
-        quantile_width = self.len / float(n_quantiles)
-        quantiles = [0] * n_quantiles
-        return quantile_width, quantiles
+class GenomicPoint:
+
+    def __init__(self, pos, score, n_quantile):
+        self.pos = pos
+        self.score = score
+        self.n_quantile = n_quantile
 
 
 class Sequence:
