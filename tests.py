@@ -102,6 +102,99 @@ class TestTranscripts(ut.TestCase):
         self.assertEqual(600, trans.cds_start)
         self.assertEqual(100, trans.cds_stop)
 
+    def test_abs_pos_dw_1exon(self):
+        trans = ft.Transcript('t', self.gene1)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        pos = trans.abs_pos_downstream(150, 10)
+        self.assertEqual(160, pos)
+
+    def test_abs_pos_dw_2exons(self):
+        trans = ft.Transcript('t', self.gene1)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        exon2 = ft.Exon(2, trans, 300, 400)
+        pos = trans.abs_pos_downstream(150, 100)
+        self.assertEqual(349, pos)
+
+    def test_abs_pos_dw_3exons(self):
+        trans = ft.Transcript('t', self.gene1)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        exon2 = ft.Exon(2, trans, 300, 400)
+        exon2 = ft.Exon(3, trans, 800, 900)
+        pos = trans.abs_pos_downstream(150, 200)
+        self.assertEqual(848, pos)
+
+    def test_abs_pos_dw_1exon_rev(self):
+        trans = ft.Transcript('t', self.gene2)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        pos = trans.abs_pos_downstream(150, 10)
+        self.assertEqual(140, pos)
+
+    def test_abs_pos_dw_2exons_rev(self):
+        trans = ft.Transcript('t', self.gene2)
+        exon1 = ft.Exon(1, trans, 300, 400)
+        exon2 = ft.Exon(2, trans, 100, 200)
+        pos = trans.abs_pos_downstream(350, 100)
+        self.assertEqual(151, pos)
+
+    def test_abs_pos_dw_3exons_rev(self):
+        trans = ft.Transcript('t', self.gene2)
+        exon1 = ft.Exon(1, trans, 600, 700)
+        exon2 = ft.Exon(2, trans, 300, 400)
+        exon3 = ft.Exon(3, trans, 100, 200)
+        pos = trans.abs_pos_downstream(650, 200)
+        self.assertEqual(152, pos)
+
+    def test_abs_pos_up_1exon(self):
+        trans = ft.Transcript('t', self.gene1)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        pos = trans.abs_pos_upstream(150, 10)
+        self.assertEqual(140, pos)
+
+    def test_abs_pos_up_2exons(self):
+        trans = ft.Transcript('t', self.gene1)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        exon2 = ft.Exon(2, trans, 300, 400)
+        pos = trans.abs_pos_upstream(340, 100)
+        self.assertEqual(141, pos)
+
+    def test_abs_pos_up_3exons(self):
+        trans = ft.Transcript('t', self.gene1)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        exon2 = ft.Exon(2, trans, 300, 400)
+        exon2 = ft.Exon(3, trans, 800, 923)
+        pos = trans.abs_pos_upstream(820, 210)
+        self.assertEqual(112, pos)
+
+    def test_abs_pos_up_1exon_rev(self):
+        trans = ft.Transcript('t', self.gene2)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        pos = trans.abs_pos_upstream(150, 10)
+        self.assertEqual(160, pos)
+
+    def test_abs_pos_up_2exons_rev(self):
+        trans = ft.Transcript('t', self.gene2)
+        exon1 = ft.Exon(1, trans, 400, 500)
+        exon2 = ft.Exon(2, trans, 100, 200)
+        pos = trans.abs_pos_upstream(120, 110)
+        self.assertEqual(429, pos)
+
+    def test_intervals_1exon(self):
+        trans = ft.Transcript('t', self.gene1)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        inter = list(trans.intervals(140, 160))[0]
+        self.assertEqual(140, inter[0])
+        self.assertEqual(160, inter[1])
+
+    def test_intervals_2exon(self):
+        trans = ft.Transcript('t', self.gene1)
+        exon1 = ft.Exon(1, trans, 100, 200)
+        exon2 = ft.Exon(2, trans, 300, 400)
+        inter = list(trans.intervals(140, 360))
+        self.assertEqual(140, inter[0][0])
+        self.assertEqual(200, inter[0][1])
+        self.assertEqual(300, inter[1][0])
+        self.assertEqual(360, inter[1][1])
+
 
 class TestGene(ut.TestCase):
 
@@ -130,142 +223,6 @@ class TestChromosome(ut.TestCase):
         for k in self.chr1.transcripts:
             n += 1
         self.assertEqual(3, n)
-
-
-# class TestTranscriptsGroup(ut.TestCase):
-#
-#     chr1 = ft.Chromosome('chr1')
-#     gene = ft.Gene('g1', chr1, 'gene1', '+')
-#     trans_100 = ft.Transcript('t1', gene)
-#     exon_100 = ft.Exon(1, trans_100, 100, 200)
-#     trans_130 = ft.Transcript('t2', gene)
-#     exon_130 = ft.Exon(1, trans_130, 130, 230)
-#     gene_rev = ft.Gene('g2', chr1, 'gene2', '-')
-#     trans_rev_250 = ft.Transcript('t3', gene_rev)
-#     exon_rev_250 = ft.Exon(1, trans_rev_250, 100, 250)
-#     trans_rev_30 = ft.Transcript('t4', gene_rev)
-#     exon_30 = ft.Exon(1, trans_rev_30, 10, 30)
-#
-#     def test_add_1tss(self):
-#         trans_group = gr.TranscriptsGroup()
-#         trans_group._add_tss(self.trans_100)
-#         self.assertEquals(1, len(trans_group.transcripts['chr1']))
-#
-#     def test_add_2tss(self):
-#         trans_group = gr.TranscriptsGroup()
-#         trans_group._add_tss(self.trans_100)
-#         trans_group._add_tss(self.trans_130)
-#         self.assertEquals(2, len(trans_group.transcripts['chr1']))
-#         self.assertEquals(100, trans_group.transcripts['chr1'][0].tss)
-#         self.assertEquals(130, trans_group.transcripts['chr1'][1].tss)
-#
-#     def test_add_2tss_order(self):
-#         trans_group = gr.TranscriptsGroup()
-#         trans_group._add_tss(self.trans_130)
-#         trans_group._add_tss(self.trans_100)
-#         self.assertEquals(100, trans_group.transcripts['chr1'][0].tss)
-#         self.assertEquals(130, trans_group.transcripts['chr1'][1].tss)
-#
-#     def test_add_3tss_rev(self):
-#         trans_group = gr.TranscriptsGroup()
-#         trans_group._add_tss(self.trans_100)
-#         trans_group._add_tss(self.trans_rev_250)
-#         trans_group._add_tss(self.trans_rev_30)
-#         self.assertEquals(3, len(trans_group.transcripts['chr1']))
-#         self.assertEquals(30, trans_group.transcripts['chr1'][0].tss)
-#         self.assertEquals(100, trans_group.transcripts['chr1'][1].tss)
-#         self.assertEquals(250, trans_group.transcripts['chr1'][2].tss)
-#
-#     def test_get_antisense_in_range(self):
-#         trans_group = gr.TranscriptsGroup()
-#         trans_group._add_tss(self.trans_100)
-#         trans_group._add_tss(self.trans_rev_250)
-#         antisense = trans_group._as_in_range(range(1, 2), trans_group.transcripts['chr1'], '+', 'lulli')
-#         self.assertEquals(self.trans_rev_250, antisense)
-#
-#     def test_get_closest_antisense(self):
-#         trans_group = gr.TranscriptsGroup()
-#         trans_group._add_tss(self.trans_100)
-#         trans_group._add_tss(self.trans_rev_250)
-#         antisense = trans_group._get_closest_antisense(self.trans_100, 0, trans_group.transcripts['chr1'])
-#         self.assertEquals(self.trans_rev_250, antisense)
-#
-#     def test_get_closest_antisense2(self):
-#         trans_group = gr.TranscriptsGroup()
-#         trans_group._add_tss(self.trans_100)
-#         trans_group._add_tss(self.trans_rev_250)
-#         trans_group._add_tss(self.trans_rev_30)
-#         antisense = trans_group._get_closest_antisense(self.trans_100, 1, trans_group.transcripts['chr1'])
-#         self.assertEquals(self.trans_rev_30, antisense)
-
-
-class TestGenomicInterval(ut.TestCase):
-
-    chr1 = ft.Chromosome('1')
-    gi = ft.GenomicLayer(chr1, 1, 100)
-
-    def test_setup_quantiles_None(self):
-        gi = ft.GenomicLayer(1, 1, 100)
-        quant_width, quants = gi._setup_quantiles(None)
-        self.assertEquals(0, quant_width)
-        self.assertEquals([], quants)
-
-    def test_setup_quantiles(self):
-        gi = ft.GenomicLayer(1, 1, 100)
-        quant_width, quants = gi._setup_quantiles(5)
-        self.assertEquals(20, quant_width)
-        self.assertEquals(5, len(quants))
-        for k in quants:
-            self.assertEquals(0,k)
-
-    def test_distance_from_start(self):
-        self.assertEquals(0, self.gi._distance_from_start(1))
-        self.assertEquals(100, self.gi._distance_from_start(101))
-
-    def test_distance_from_start_rev(self):
-        gi = ft.GenomicLayer(1, 1, 100, strand ='-')
-        self.assertEquals(1, gi._distance_from_start(99))
-        self.assertEquals(100, gi._distance_from_start(0))
-
-    def test_quantiles_add(self):
-        gi = ft.GenomicLayer(1, 1, 100)
-        for k in range(1,101):
-            gi.add(k)
-        for j in gi.quantiles:
-            self.assertEquals(2, j)
-
-    def test_quantiles_normalize_empty(self):
-        gi = ft.GenomicLayer(1, 1, 100)
-        gi.normalize_quantiles()
-        self.assertEquals(0, sum(self.gi.quantiles))
-
-    def test_quantiles_normalize_divisor(self):
-        gi = ft.GenomicLayer(1, 1, 100, n_quantiles=10)
-        gi.add(1)
-        gi.normalize_quantiles(divisor = 10)
-        self.assertEquals(0.1, gi.quantiles[0])
-        self.assertEquals(0.1, sum(gi.quantiles))
-
-    def test_quantiles_normalize(self):
-        gi = ft.GenomicLayer(1, 1, 100, n_quantiles=50)
-        gi.add(1)
-        gi.add(1)
-        gi.add(3)
-        gi.normalize_quantiles()
-        self.assertEquals(1, gi.quantiles[0])
-        self.assertEquals(0.5, gi.quantiles[1])
-
-    def test_includes_not(self):
-        self.assertFalse(self.gi.includes(0))
-
-    def test_includes(self):
-        self.assertTrue(self.gi.includes(24))
-
-    def test_includes_pos2(self):
-        self.assertTrue(self.gi.includes(0,2))
-
-    def test_includes_pos2_not(self):
-        self.assertTrue(self.gi.includes(23,66))
 
 
 class TestSequence(ut.TestCase):

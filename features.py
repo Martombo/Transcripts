@@ -86,9 +86,6 @@ class Chromosome:
         for trans_j in trans_range:
             if trans_chrom[trans_j] != strand and trans_chrom[trans_j].gene.id != not_gene:
                 return trans_chrom[trans_j]
-        trans_null = Transcript('null')
-        trans_null.tss = -1000000
-        return trans_null
 
     @property
     def genes(self):
@@ -129,6 +126,9 @@ class Transcript:
         self.gene.trans_dict[id] = self
         self.exons, self.splice_sites = [], []
         self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
+
+    def __len__(self):
+        return sum([len(exon) for exon in self.exons])
 
     @property
     def n_splice_sites(self):
@@ -205,20 +205,62 @@ class Transcript:
     def _add_splice_site(self, start, stop):
         self.splice_sites.append('_'.join([str(x) for x in (start, stop)]))
 
-    def distance_to_end(self, pos):
-        distance = 0
-        for exon in self.exons[::-1]:
-            if exon.includes(pos):
-                return distance + exon.distance_to_end(pos)
-            distance += exon.len
-
     def distance_from_start(self, pos):
         distance = 0
         for exon in self.exons:
             if exon.includes(pos):
                 return distance + exon.distance_from_start(pos)
-            distance += exon.len
+            distance += len(exon)
         return distance
+
+    def distance_to_end(self, pos):
+        distance = 0
+        for exon in self.exons[::-1]:
+            if exon.includes(pos):
+                return distance + exon.distance_to_end(pos)
+            distance += len(exon)
+
+    def intervals(self, start, stop):
+        after_start = False
+        for exon in self.exons:
+            if after_start:
+                if exon.includes(stop):
+                    yield exon.start, stop
+                    break
+                yield exon.start, exon.stop
+            elif exon.includes(start):
+                after_start = True
+                if exon.includes(stop):
+                    yield start, stop
+                else:
+                    yield start, exon.stop
+
+    def exon_n_with(self, pos):
+        for exon_n in range(len(self.exons)):
+            if self.exons[exon_n].includes(pos):
+                return exon_n
+
+    def abs_pos_downstream(self, pos, length):
+        start_n = self.exon_n_with(pos)
+        path = abs(pos - self.exons[start_n].stop) + 1
+        if path > length:
+            return move_pos(pos, length, self.strand)
+        length -= path
+        for exon in self.exons[start_n+1:]:
+            if len(exon) > length:
+                return move_pos(exon.start, length, self.strand)
+            length -= len(exon)
+
+    def abs_pos_upstream(self, pos, length):
+        start_n = self.exon_n_with(pos)
+        path = abs(pos - self.exons[start_n].start) + 1
+        if path > length:
+            return move_pos(pos, -length, self.strand)
+        length -= path
+        for exon in self.exons[start_n-1::-1]:
+            if len(exon) > length:
+                return move_pos(exon.stop, -length, self.strand)
+            length -= len(exon)
 
 
 class Exon:
@@ -227,11 +269,11 @@ class Exon:
         self.transcript = transcript
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
-        assert len(self.transcript.exons) == number - 1
-        if number > 1:
-            pass
-        self.start, self.stop = fix_order(start, stop, self.strand)
-        self.transcript.add_exon(self)
+        if len(self.transcript.exons) == number - 1:
+            if number > 1:
+                pass
+            self.start, self.stop = fix_order(start, stop, self.strand)
+            self.transcript.add_exon(self)
 
     @property
     def gene(self):
@@ -245,8 +287,7 @@ class Exon:
     def chromosome(self):
         return self.transcript.chromosome
 
-    @property
-    def len(self):
+    def __len__(self):
         return self.genomic_stop - self.genomic_start + 1
 
     def get_sequence(self):
@@ -317,15 +358,16 @@ class GenomicOverlay:
 
 class GenomicLayer:
 
-    def __init__(self, start, stop, strand, overlay):
+    def __init__(self, start, stop, strand, overlay=None):
         self.start, self.stop = start, stop
-        self.strand, self.overlay = strand, overlay
-        self.overlay.layers.append(self)
-        self.quantile_width = self.len / float(overlay.n_quantiles)
-        self.points = self._set_points()
+        self.strand = strand
+        if overlay:
+            self.overlay = overlay
+            self.overlay.layers.append(self)
+            self.quantile_width = len(self) / float(overlay.n_quantiles)
+            self.points = self._set_points()
 
-    @property
-    def len(self):
+    def __len__(self):
         return abs(self.stop - self.start)
 
     def _set_points(self):
@@ -360,9 +402,12 @@ class Sequence:
         self.seq = seq
         self.len = len(seq)
 
+    def __len__(self):
+        return self.len
+
     def get_orfs(self):
         orfs = []
-        for pos in range(self.len - 2):
+        for pos in range(len(self) - 2):
             if self.is_start(pos):
                 stop = self.next_stop(pos + 3)
                 if stop:
@@ -370,7 +415,7 @@ class Sequence:
         return orfs
 
     def next_stop(self, pos):
-        while pos < self.len - 2:
+        while pos < len(self) - 2:
             if self.is_stop(pos):
                 return pos
             pos += 3
