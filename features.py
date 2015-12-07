@@ -221,6 +221,7 @@ class Transcript:
             distance += len(exon)
 
     def intervals(self, start, stop):
+        start, stop = fix_order(start, stop, self.strand)
         after_start = False
         for exon in self.exons:
             if after_start:

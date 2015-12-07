@@ -195,6 +195,16 @@ class TestTranscripts(ut.TestCase):
         self.assertEqual(300, inter[1][0])
         self.assertEqual(360, inter[1][1])
 
+    def test_intervals_2exon_rev(self):
+        trans = ft.Transcript('t', self.gene2)
+        exon1 = ft.Exon(1, trans, 300, 400)
+        exon2 = ft.Exon(2, trans, 100, 200)
+        inter = list(trans.intervals(360, 140))
+        self.assertEqual(360, inter[0][0])
+        self.assertEqual(300, inter[0][1])
+        self.assertEqual(200, inter[1][0])
+        self.assertEqual(140, inter[1][1])
+
 
 class TestGene(ut.TestCase):
 
