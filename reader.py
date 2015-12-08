@@ -31,9 +31,9 @@ class Gtf:
                     continue
                 trans = self._get_transcript(line_dic, gene)
                 if line_dic['type'] == 'start_codon':
-                    trans.cds_start = min(line_dic['start'], line_dic['stop'])
+                    trans.cds_start = ft.fix_order(line_dic['start'], line_dic['stop'], trans.strand)[0]
                 elif line_dic['type'] == 'stop_codon':
-                    trans.cds_stop = max(line_dic['start'], line_dic['stop'])
+                    trans.cds_stop = ft.fix_order(line_dic['start'], line_dic['stop'], trans.strand)[0]
                 elif line_dic['type'] == 'exon':
                     exon = ft.Exon(int(line_dic['exon_number']), trans, line_dic['start'], line_dic['stop'])
                 elif line_dic['type'] == 'CDS':
