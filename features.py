@@ -221,6 +221,7 @@ class Transcript:
             distance += len(exon)
 
     def intervals(self, start, stop):
+        """given chrom positions start and stop in transcript, returns the exonic intervals"""
         start, stop = fix_order(start, stop, self.strand)
         after_start = False
         for exon in self.exons:
@@ -233,15 +234,21 @@ class Transcript:
                 after_start = True
                 if exon.includes(stop):
                     yield start, stop
+                    break
                 else:
                     yield start, exon.stop
 
     def exon_n_with(self, pos):
+        """returns the number of the exon that has pos"""
         for exon_n in range(len(self.exons)):
             if self.exons[exon_n].includes(pos):
                 return exon_n
 
     def abs_pos_downstream(self, pos, length):
+        """
+        walks the transcript downstream, from pos for length
+        returns the end position. None if span of transcript is exceeded
+        """
         start_n = self.exon_n_with(pos)
         path = abs(pos - self.exons[start_n].stop) + 1
         if path > length:
@@ -253,11 +260,17 @@ class Transcript:
             length -= len(exon)
 
     def abs_pos_upstream(self, pos, length):
+        """
+        walks the transcript upstream, from pos for length
+        returns the end position. None if span of transcript is exceeded
+        """
         start_n = self.exon_n_with(pos)
         path = abs(pos - self.exons[start_n].start) + 1
         if path > length:
             return move_pos(pos, -length, self.strand)
         length -= path
+        if start_n == 0:
+            return
         for exon in self.exons[start_n-1::-1]:
             if len(exon) > length:
                 return move_pos(exon.stop, -length, self.strand)
@@ -271,8 +284,6 @@ class Exon:
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
         if len(self.transcript.exons) == number - 1:
-            if number > 1:
-                pass
             self.start, self.stop = fix_order(start, stop, self.strand)
             self.transcript.add_exon(self)
 
@@ -323,10 +334,8 @@ class Exon:
     def distance_to_end(self, pos):
         return abs(self.stop - pos)
 
-    def includes(self, pos1, pos2=None):
-        if self.genomic_start <= pos1 <= self.genomic_stop:
-            return True
-        if pos2 and self.genomic_start <= pos2 <= self.genomic_stop:
+    def includes(self, pos):
+        if self.genomic_start <= pos <= self.genomic_stop:
             return True
         return False
 
@@ -484,6 +493,27 @@ def fasta2seq(fasta):
 
 
 def move_pos(pos, move, strand):
-        if strand == '+':
-            return pos + move
-        return pos - move
+    """moves the position according to the strand"""
+    if strand == '+':
+        return pos + move
+    return pos - move
+
+
+def intervals_to_bed12(intervals, strand):
+    """
+    returns 0-based bed12 fields:
+    chromStart, chromStop, blockCounts, blockSizes, blockStarts
+    from a 1-based set of intervals, according to strand
+    the intervals are ordered depending on the strand
+    """
+    intervals = list(intervals)
+    if strand == '-':
+        intervals = [sorted(interval) for interval in intervals[::-1]]
+    chromStart = intervals[0][0] - 1
+    chromStop = intervals[-1][1]
+    blockCounts = len(intervals)
+    blockSizes, blockStarts = '', ''
+    for interval in intervals:
+        blockSizes += str(interval[1] - interval[0] + 1) + ','
+        blockStarts += str(interval[0] - 1 - chromStart) + ','
+    return chromStart, chromStop, blockCounts, blockSizes, blockStarts
