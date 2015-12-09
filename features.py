@@ -197,10 +197,7 @@ class Transcript:
 
     def get_stop_counts(self, bam):
         if self.tss:
-            n_stop_14 = bam.get_coverage(self.chromosome, move_pos(self.tss, -14, self.strand) - 1, strand=self.strand)
-            n_stop_7 = bam.get_coverage(self.chromosome, move_pos(self.tss, -7, self.strand) - 1, strand=self.strand)
-            n_stop = bam.get_coverage(self.chromosome, self.tss - 1, strand=self.strand)
-            return max(n_stop_14, n_stop_7, n_stop)
+            return bam.get_coverage(self.chromosome.name, move_pos(self.tss, -10, self.strand) - 1, strand=self.strand)
 
     def _add_splice_site(self, start, stop):
         self.splice_sites.append('_'.join([str(x) for x in (start, stop)]))
