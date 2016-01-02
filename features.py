@@ -117,6 +117,20 @@ class Gene:
     def get_sequence(self, start_stop):
         return self.chromosome.get_sequence(start_stop, self.strand)
 
+    def most_upstream_trans(self):
+        transs = list(self.transcripts)
+        if not transs[0]:
+            return
+        str_mul = int(self.strand + '1')
+        ups_trans = transs[0]
+        ups_start = str_mul * transs[0].tss
+        for trans in transs[1:]:
+            trans_tss = str_mul * trans.tss
+            if trans_tss < ups_start:
+                ups_start = trans_tss
+                ups_trans = trans
+        return ups_trans
+
 
 class Transcript:
 
