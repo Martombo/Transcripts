@@ -305,13 +305,15 @@ class Transcript:
                 return move_pos(exon.stop, -length, self.strand)
             length -= len(exon)
 
-    def get_cds_relative_starts(self, bam):
+    def get_cds_relative_starts(self, bam, min_qual=40):
         """
         saves the relative position of read starts sites overlapping its cds
         :param bam: a bam object (from reader module)
+        :param min_qual: default TopHat: only uniquely mapped reads
         :return: a dict with 1-based starts as key and number of reads as value
         """
-        starts_dict = bam.get_read_starts(self.chromosome.name, fix_order(self.cds_start, self.cds_stop, '+'))
+        start_stop = fix_order(self.cds_start, self.cds_stop, '+')
+        starts_dict = bam.get_read_starts(self.chromosome.name, start_stop[0], start_stop[1], self.strand, min_qual)
         rel_starts = {}
         for start, n_reads in starts_dict.items():
             start += 1
