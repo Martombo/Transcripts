@@ -121,6 +121,27 @@ class Bam:
             self.pysam = ps.AlignmentFile(path, 'rb')
         self.reads_orientation = reads_orientation
 
+    def get_read_starts(self, chrom, start, stop, strand='', min_qual=40):
+        """
+        collects the read start sites from the specified interval
+        :param chrom:  str chromosome name
+        :param start: int start 0-based
+        :param stop: int stop 0-based
+        :param strand: '+', '-' or None
+        :param min_qual: default TopHat: only uniquely mapped reads
+        :return: a dict with starts as key and number of reads as value
+        """
+        fetch = self.pysam.fetch(chrom, start, stop)
+        pos_dict = {}
+        for read in fetch:
+            if read.mapq >= min_qual:
+                if strand and strand == self.determine_strand(read):
+                    pos = read.reference_start
+                    if pos not in pos_dict:
+                        pos_dict[pos] = 0
+                    pos_dict[pos] += 1
+        return pos_dict
+
     def get_coverage(self, chrom, start, stop=None, strand='', min_qual=40):
         """
         get the number of reads in region
@@ -173,7 +194,7 @@ class BedGraph:
             interval = self._parse_line(linea)
             if interval['score'] < 0:
                 continue
-            for base in range(interval['start'] + 1, interval['stop']):
+            for base in range(interval['start'] + 1, interval['stop'] + 1):
                 yield base, interval['score']
 
 

@@ -179,6 +179,10 @@ class Transcript:
         if len(self.exons) > 0:
             return self.exons[0].start
 
+    def in_cds(self,pos):
+        if self.cds_start <= pos <= self.cds_stop or self.cds_start >= pos >= self.cds_stop:
+            return True
+
     def get_sequence(self):
         """returns the whole transcript sequence"""
         return ''.join([exon.get_sequence() for exon in self.exons])
@@ -223,6 +227,20 @@ class Transcript:
                 return distance + exon.distance_from_start(pos)
             distance += len(exon)
         return distance
+
+    def distance_from_cds_start(self, pos):
+        if not self.cds_start:
+            return
+        distance = 0
+        for exon in self.exons:
+            if exon.includes(pos):
+                if exon.includes(self.cds_start):
+                    return abs(self.cds_start - pos)
+                return distance + exon.distance_from_start(pos)
+            elif exon.includes(self.cds_start):
+                distance += abs(self.cds_start - exon.stop) + 1
+            else:
+                distance += len(exon)
 
     def distance_to_end(self, pos):
         distance = 0
@@ -286,6 +304,22 @@ class Transcript:
             if len(exon) > length:
                 return move_pos(exon.stop, -length, self.strand)
             length -= len(exon)
+
+    def get_cds_relative_starts(self, bam):
+        """
+        saves the relative position of read starts sites overlapping its cds
+        :param bam: a bam object (from reader module)
+        :return: a dict with 1-based starts as key and number of reads as value
+        """
+        starts_dict = bam.get_read_starts(self.chromosome.name, fix_order(self.cds_start, self.cds_stop, '+'))
+        rel_starts = {}
+        for start, n_reads in starts_dict.items():
+            start += 1
+            if not self.in_cds(start):
+                continue
+            rel_pos = self.distance_from_cds_start(start)
+            rel_starts[rel_pos] = n_reads
+        return rel_starts
 
 
 class Exon:

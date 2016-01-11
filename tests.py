@@ -205,6 +205,19 @@ class TestTranscripts(ut.TestCase):
         self.assertEqual(200, inter[1][0])
         self.assertEqual(140, inter[1][1])
 
+    def test_distance_from_tss_1exon(self):
+        trans = ft.Transcript('t', self.gene1)
+        trans.cds_start = 110
+        exon1 = ft.Exon(1, trans, 100, 200)
+        self.assertEqual(10, trans.distance_from_cds_start(120))
+
+    def test_distance_from_tss_2exons(self):
+        trans = ft.Transcript('t', self.gene1)
+        trans.cds_start = 110
+        exon1 = ft.Exon(1, trans, 100, 200)
+        exon2 = ft.Exon(2, trans, 300, 400)
+        self.assertEqual(91, trans.distance_from_cds_start(300))
+
 
 class TestGene(ut.TestCase):
 
