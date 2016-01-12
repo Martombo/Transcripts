@@ -109,6 +109,9 @@ class Gene:
         self.strand = strand
         self.trans_dict = {}
 
+    def __len__(self):
+        return max([len(trans) for trans in self.transcripts])
+
     @property
     def transcripts(self):
         for trans in self.trans_dict.values():
