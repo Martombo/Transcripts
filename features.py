@@ -110,7 +110,7 @@ class Gene:
         self.trans_dict = {}
 
     def __len__(self):
-        return max([len(trans) for trans in self.transcripts])
+        return max([len(trans) for trans in self.transcripts] + [0])
 
     @property
     def transcripts(self):
