@@ -30,6 +30,15 @@ class TestFeatureGeneral(ut.TestCase):
         pos = ft.move_pos(100,+10, '-')
         self.assertEqual(90, pos)
 
+    def test_before_strand(self):
+        self.assertTrue(ft.before_strand(100, 200, '+'))
+
+    def test_before_strand_rev(self):
+        self.assertTrue(ft.before_strand(200, 100, '-'))
+
+    def test_before_strand_false(self):
+        self.assertFalse(ft.before_strand(200, 100, '+'))
+
 
 class TestExons(ut.TestCase):
 

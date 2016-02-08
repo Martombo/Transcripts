@@ -364,6 +364,13 @@ class Exon:
     def chromosome(self):
         return self.transcripts[0].chromosome
 
+    def coding_transcripts(self):
+        for trans in self.transcripts:
+            if trans.cds_stop and \
+                    before_strand(self.start, trans.cds_stop, self.strand) and \
+                    before_strand(trans.cds_start, self.stop, self.strand):
+                yield trans
+
     def __len__(self):
         return self.genomic_stop - self.genomic_start + 1
 
@@ -411,6 +418,13 @@ class Exon:
     def gtf(self):
         transs = '_'.join([x.id + '.' + str(self.number) for x in self.transcripts])
         return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
+                         self.strand, 'gene_id "' + transs + '";'])
+
+    def gtf_coding(self):
+        coding_transcripts = self.coding_transcripts()
+        if coding_transcripts:
+            transs = '_'.join([x.id + '.' + str(self.number) for x in coding_transcripts])
+            return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
                          self.strand, 'gene_id "' + transs + '";'])
 
 
@@ -571,6 +585,14 @@ def move_pos(pos, move, strand):
     if strand == '+':
         return pos + move
     return pos - move
+
+
+def before_strand(pos1, pos2, strand):
+    if strand == '+' and pos1 <= pos2:
+        return True
+    if strand == '-' and pos1 >= pos2:
+        return True
+    return False
 
 
 def intervals_to_bed12(intervals, strand):
