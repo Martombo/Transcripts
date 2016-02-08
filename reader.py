@@ -35,10 +35,19 @@ class Gtf:
                 elif line_dic['type'] == 'stop_codon':
                     trans.cds_stop = ft.fix_order(line_dic['start'], line_dic['stop'], trans.strand)[0]
                 elif line_dic['type'] == 'exon':
-                    exon = ft.Exon(int(line_dic['exon_number']), trans, line_dic['start'], line_dic['stop'])
+                    self._set_exon(line_dic['start'], line_dic['stop'], int(line_dic['exon_number']), trans, gene)
                 elif line_dic['type'] == 'CDS':
                     trans.add_cds(line_dic['start'], line_dic['stop'])
         return self.genome
+
+    @staticmethod
+    def _set_exon(start, stop, num, trans, gene):
+        if (start, stop) in gene.exons_dict:
+            exon = gene.exons_dict[(start, stop)]
+            exon.add_transcript(trans)
+        else:
+            exon = ft.Exon(num, trans, start, stop)
+            gene.add_exon(exon)
 
     @staticmethod
     def _get_transcript(attr, gene):

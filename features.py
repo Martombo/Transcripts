@@ -107,15 +107,23 @@ class Gene:
         self.chromosome = chromosome
         chromosome.genes_dict[id] = self
         self.strand = strand
-        self.trans_dict = {}
+        self.trans_dict, self.exons_dict = {}, {}
 
     def __len__(self):
         return max([len(trans) for trans in self.transcripts] + [0])
 
     @property
+    def exons(self):
+        for exon in self.exons_dict.values():
+            yield exon
+
+    @property
     def transcripts(self):
         for trans in self.trans_dict.values():
             yield trans
+
+    def add_exon(self, exon):
+        self.exons_dict[(exon.genomic_start, exon.genomic_stop)] = exon
 
     def get_sequence(self, start_stop):
         return self.chromosome.get_sequence(start_stop, self.strand)
@@ -141,11 +149,16 @@ class Transcript:
         self.id = id
         self.gene = gene
         self.gene.trans_dict[id] = self
-        self.exons, self.splice_sites = [], []
+        self.exon_dict, self.splice_sites = {}, []
         self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
 
     def __len__(self):
-        return sum([len(exon) for exon in self.exons])
+        return sum([len(exon) for exon in self.exon_dict.values()])
+
+    @property
+    def exons(self):
+        for n in sorted(self.exon_dict):
+            yield self.exon_dict[n]
 
     @property
     def n_splice_sites(self):
@@ -179,8 +192,8 @@ class Transcript:
 
     @property
     def tss(self):
-        if len(self.exons) > 0:
-            return self.exons[0].start
+        if len(self.exon_dict) > 0:
+            return self.exon_dict[0].start
 
     def in_cds(self,pos):
         if self.cds_start <= pos <= self.cds_stop or self.cds_start >= pos >= self.cds_stop:
@@ -203,13 +216,10 @@ class Transcript:
         query = '_'.join([str(x) for x in fix_order(start, stop, self.strand)])
         for site_n in range(self.n_splice_sites):
             if self.splice_sites[site_n] == query:
-                return self.exons[site_n], self.exons[site_n + 1]
+                return self.exon_dict[site_n], self.exon_dict[site_n + 1]
 
     def add_exon(self, exon):
-        self.exons.append(exon)
-        prev_exon_i = len(self.exons) - 2
-        if prev_exon_i >= 0:
-            self._add_splice_site(self.exons[prev_exon_i].stop, exon.start)
+        self.exon_dict[exon.number] = exon
 
     def add_cds(self, start, stop):
         start, stop = fix_order(start, stop, self.strand)
@@ -220,12 +230,14 @@ class Transcript:
         if self.tss:
             return bam.get_coverage(self.chromosome.name, move_pos(self.tss, -10, self.strand) - 1, strand=self.strand)
 
-    def _add_splice_site(self, start, stop):
-        self.splice_sites.append('_'.join([str(x) for x in (start, stop)]))
+    def add_splice_sites(self):
+        exons = list(self.exons)
+        for exon_n in range(1, len(exons)):
+            self.splice_sites.append(str(exons[exon_n - 1].stop) + '_' + str(exons[exon_n].start))
 
     def distance_from_start(self, pos):
         distance = 0
-        for exon in self.exons:
+        for exon in self.exon_dict.values():
             if exon.includes(pos):
                 return distance + exon.distance_from_start(pos)
             distance += len(exon)
@@ -235,7 +247,7 @@ class Transcript:
         if not self.cds_start:
             return
         distance = 0
-        for exon in self.exons:
+        for exon in self.exon_dict.values():
             if exon.includes(pos):
                 if exon.includes(self.cds_start):
                     return abs(self.cds_start - pos)
@@ -247,7 +259,7 @@ class Transcript:
 
     def distance_to_end(self, pos):
         distance = 0
-        for exon in self.exons[::-1]:
+        for exon in list(self.exons)[::-1]:
             if exon.includes(pos):
                 return distance + exon.distance_to_end(pos)
             distance += len(exon)
@@ -270,10 +282,11 @@ class Transcript:
                 else:
                     yield start, exon.stop
 
-    def exon_n_with(self, pos):
+    @staticmethod
+    def exon_n_with(pos, exons):
         """returns the number of the exon that has pos"""
-        for exon_n in range(len(self.exons)):
-            if self.exons[exon_n].includes(pos):
+        for exon_n in range(len(exons)):
+            if exons[exon_n].includes(pos):
                 return exon_n
 
     def abs_pos_downstream(self, pos, length):
@@ -281,12 +294,13 @@ class Transcript:
         walks the transcript downstream, from pos for length
         returns the end position. None if span of transcript is exceeded
         """
-        start_n = self.exon_n_with(pos)
-        path = abs(pos - self.exons[start_n].stop) + 1
+        exons = list(self.exons)
+        start_n = self.exon_n_with(pos, exons)
+        path = abs(pos - exons[start_n].stop) + 1
         if path > length:
             return move_pos(pos, length, self.strand)
         length -= path
-        for exon in self.exons[start_n+1:]:
+        for exon in exons[start_n+1:]:
             if len(exon) > length:
                 return move_pos(exon.start, length, self.strand)
             length -= len(exon)
@@ -296,14 +310,15 @@ class Transcript:
         walks the transcript upstream, from pos for length
         returns the end position. None if span of transcript is exceeded
         """
-        start_n = self.exon_n_with(pos)
-        path = abs(pos - self.exons[start_n].start) + 1
+        exons = list(self.exons)
+        start_n = self.exon_n_with(pos, exons)
+        path = abs(pos - exons[start_n].start) + 1
         if path > length:
             return move_pos(pos, -length, self.strand)
         length -= path
         if start_n == 0:
             return
-        for exon in self.exons[start_n-1::-1]:
+        for exon in exons[start_n-1::-1]:
             if len(exon) > length:
                 return move_pos(exon.stop, -length, self.strand)
             length -= len(exon)
@@ -330,27 +345,31 @@ class Transcript:
 class Exon:
 
     def __init__(self, number, transcript, start, stop):
-        self.transcript = transcript
+        self.transcripts = [transcript]
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
-        if len(self.transcript.exons) == number - 1:
-            self.start, self.stop = fix_order(start, stop, self.strand)
-            self.transcript.add_exon(self)
+        self.number = number - 1
+        self.start, self.stop = fix_order(start, stop, self.strand)
+        transcript.add_exon(self)
 
     @property
     def gene(self):
-        return self.transcript.gene
+        return self.transcripts[0].gene
 
     @property
     def strand(self):
-        return self.transcript.strand
+        return self.transcripts[0].strand
 
     @property
     def chromosome(self):
-        return self.transcript.chromosome
+        return self.transcripts[0].chromosome
 
     def __len__(self):
         return self.genomic_stop - self.genomic_start + 1
+
+    def add_transcript(self, trans):
+        self.transcripts.append(trans)
+        trans.add_exon(self)
 
     def get_sequence(self):
         """returns the whole exon sequence"""
@@ -388,6 +407,11 @@ class Exon:
         if self.genomic_start <= pos <= self.genomic_stop:
             return True
         return False
+
+    def gtf(self):
+        transs = '_'.join([x.id + '.' + str(self.number) for x in self.transcripts])
+        return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
+                         self.strand, 'gene_id "' + transs + '";'])
 
 
 class GenomicOverlay:

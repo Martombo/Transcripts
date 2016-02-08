@@ -69,7 +69,7 @@ class TestTranscripts(ut.TestCase):
         trans1 = ft.Transcript('t1', self.gene1)
         exon1 = ft.Exon(1, trans1, 100, 200)
         exon2 = ft.Exon(2, trans1, 300, 400)
-        self.assertEquals(2, len(trans1.exons))
+        self.assertEquals(2, len(trans1.exon_dict))
 
     def test_2trans(self):
         trans1 = ft.Transcript('t1', self.gene1)
