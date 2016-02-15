@@ -145,9 +145,10 @@ class Gene:
 
 class Transcript:
 
-    def __init__(self, id, gene=None, cds_start=None, cds_stop=None, tss=None):
+    def __init__(self, id, gene=None, cds_start=None, cds_stop=None, tss=None, biotype=None):
         self.id = id
         self.gene = gene
+        self.biotype = biotype
         self.gene.trans_dict[id] = self
         self.exon_dict, self.splice_sites = {}, []
         self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
@@ -212,7 +213,7 @@ class Transcript:
             first_3utr = move_pos(self.cds_stop, +3, self.strand)
             return ''.join([exon.get_seq_to_stop(first_3utr) for exon in self.exons])
 
-    def get_exons_from_site(self, start, stop):
+    def get_exons_from_splice_site(self, start, stop):
         query = '_'.join([str(x) for x in fix_order(start, stop, self.strand)])
         for site_n in range(self.n_splice_sites):
             if self.splice_sites[site_n] == query:
@@ -221,10 +222,14 @@ class Transcript:
     def add_exon(self, exon):
         self.exon_dict[exon.number] = exon
 
-    def add_cds(self, start, stop):
-        start, stop = fix_order(start, stop, self.strand)
+    def add_cds(self, start, stop=None):
+        if stop:
+            start, stop = fix_order(start, stop, self.strand)
+            self.cds_stop = fix_order(self.cds_stop, stop, self.strand)[1]
         self.cds_start = fix_order(self.cds_start, start, self.strand)[0]
-        self.cds_stop = fix_order(self.cds_stop, stop, self.strand)[1]
+        cds_start_exon = self.exon_with(start)
+        if cds_start_exon:
+            cds_start_exon.cds_start = start
 
     def get_stop_counts(self, bam):
         if self.tss:
@@ -289,6 +294,12 @@ class Transcript:
             if exons[exon_n].includes(pos):
                 return exon_n
 
+    def exon_with(self, pos):
+        """returns the number of the exon that has pos"""
+        for exon in self.exons:
+            if exon.includes(pos):
+                return exon
+
     def abs_pos_downstream(self, pos, length):
         """
         walks the transcript downstream, from pos for length
@@ -344,12 +355,13 @@ class Transcript:
 
 class Exon:
 
-    def __init__(self, number, transcript, start, stop):
+    def __init__(self, number, transcript, start, stop, cds_start=None):
         self.transcripts = [transcript]
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
         self.number = number - 1
         self.start, self.stop = fix_order(start, stop, self.strand)
+        self.cds_start = cds_start
         transcript.add_exon(self)
 
     @property
@@ -396,7 +408,7 @@ class Exon:
     def get_seq_to_stop(self, start):
         """
         returns the exon sequence from start to stop,
-        the whole sequence if stop is before exon
+        the whole sequence if start is before exon
         or '' if start is after
         """
         start = fix_order(self.start, start, self.strand)[1]
@@ -502,6 +514,12 @@ class Sequence:
 
     def __len__(self):
         return self.len
+
+    def get_orf_from(self, start):
+        assert self.is_start(start)
+        stop = self.next_stop(start + 3)
+        if stop:
+            return start, stop
 
     def get_orfs(self):
         orfs = []

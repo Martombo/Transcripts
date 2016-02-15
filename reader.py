@@ -31,7 +31,7 @@ class Gtf:
                     continue
                 trans = self._get_transcript(line_dic, gene)
                 if line_dic['type'] == 'start_codon':
-                    trans.cds_start = ft.fix_order(line_dic['start'], line_dic['stop'], trans.strand)[0]
+                    trans.add_cds(ft.fix_order(line_dic['start'], line_dic['stop'], trans.strand)[0])
                 elif line_dic['type'] == 'stop_codon':
                     trans.cds_stop = ft.fix_order(line_dic['start'], line_dic['stop'], trans.strand)[0]
                 elif line_dic['type'] == 'exon':
@@ -56,9 +56,10 @@ class Gtf:
         otherwise a new Transcript
         """
         trans_id = attr['transcript_id']
+        trans_biotype = attr['transcript_biotype']
         if trans_id in gene.trans_dict:
             return gene.trans_dict[trans_id]
-        return ft.Transcript(trans_id, gene)
+        return ft.Transcript(trans_id, gene, biotype=trans_biotype)
 
     def _get_gene(self, dic):
         """
