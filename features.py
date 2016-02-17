@@ -122,8 +122,8 @@ class Gene:
         for trans in self.trans_dict.values():
             yield trans
 
-    def add_exon(self, exon):
-        self.exons_dict[(exon.genomic_start, exon.genomic_stop)] = exon
+    def add_exon(self, exon, start, stop):
+        self.exons_dict[(start, stop)] = exon
 
     def get_sequence(self, start_stop):
         return self.chromosome.get_sequence(start_stop, self.strand)
@@ -219,17 +219,14 @@ class Transcript:
             if self.splice_sites[site_n] == query:
                 return self.exon_dict[site_n], self.exon_dict[site_n + 1]
 
-    def add_exon(self, exon):
-        self.exon_dict[exon.number] = exon
+    def add_exon(self, exon, number):
+        self.exon_dict[number] = exon
 
     def add_cds(self, start, stop=None):
         if stop:
             start, stop = fix_order(start, stop, self.strand)
             self.cds_stop = fix_order(self.cds_stop, stop, self.strand)[1]
         self.cds_start = fix_order(self.cds_start, start, self.strand)[0]
-        cds_start_exon = self.exon_with(start)
-        if cds_start_exon:
-            cds_start_exon.cds_start = start
 
     def get_stop_counts(self, bam):
         if self.tss:
@@ -352,17 +349,32 @@ class Transcript:
             rel_starts[rel_pos] = n_reads
         return rel_starts
 
+    def set_cds_from_start(self, cds_start):
+        genomic_cds_start, seq = 0, ''
+        for exon in self.exons:
+            if genomic_cds_start:
+                seq += exon.get_sequence()
+            elif exon.cds_start:
+                genomic_cds_start = exon.cds_start
+                seq = exon.get_seq_to_stop(genomic_cds_start)
+        if seq:
+            seq_obj = Sequence(seq)
+            cds_rel_stop = seq_obj.get_orf_from(0)[1]
+            if cds_rel_stop:
+                self.cds_start = genomic_cds_start
+                self.cds_stop = self.abs_pos_downstream(genomic_cds_start, cds_rel_stop)
+
 
 class Exon:
 
-    def __init__(self, number, transcript, start, stop, cds_start=None):
+    def __init__(self, id, num, transcript, start, stop, cds_start=None):
+        self.id = id
         self.transcripts = [transcript]
         self.genomic_start = min(start, stop)
         self.genomic_stop = max(start, stop)
-        self.number = number - 1
         self.start, self.stop = fix_order(start, stop, self.strand)
         self.cds_start = cds_start
-        transcript.add_exon(self)
+        transcript.add_exon(self, num)
 
     @property
     def gene(self):
@@ -386,9 +398,9 @@ class Exon:
     def __len__(self):
         return self.genomic_stop - self.genomic_start + 1
 
-    def add_transcript(self, trans):
+    def add_transcript(self, trans, num):
         self.transcripts.append(trans)
-        trans.add_exon(self)
+        trans.add_exon(self, num)
 
     def get_sequence(self):
         """returns the whole exon sequence"""
@@ -428,14 +440,14 @@ class Exon:
         return False
 
     def gtf(self):
-        transs = '_'.join([x.id + '.' + str(self.number) for x in self.transcripts])
+        transs = '_'.join([x.id + '.' + self.id for x in self.transcripts])
         return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
                          self.strand, 'gene_id "' + transs + '";'])
 
     def gtf_coding(self):
         coding_transcripts = self.coding_transcripts()
         if coding_transcripts:
-            transs = '_'.join([x.id + '.' + str(self.number) for x in coding_transcripts])
+            transs = '_'.join([x.id + '.' + self.id for x in coding_transcripts])
             return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
                          self.strand, 'gene_id "' + transs + '";'])
 
@@ -516,10 +528,15 @@ class Sequence:
         return self.len
 
     def get_orf_from(self, start):
+        """finds the closest stop from an ATG, or the end of the seq
+        :param start: ATG in the sequence
+        :return: start, stop
+        """
         assert self.is_start(start)
         stop = self.next_stop(start + 3)
         if stop:
             return start, stop
+        return start, len(self) - 1
 
     def get_orfs(self):
         orfs = []

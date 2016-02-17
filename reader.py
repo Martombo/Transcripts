@@ -20,8 +20,9 @@ class Gtf:
         self.gene_biotype = gene_biotypes
         self.genome = ft.Genome()
 
-    def get_genome(self):
+    def get_genome(self, fasta_path='', predict_noncoding_cds=False):
         """returns a Genome object, from an Ensembl gtf file"""
+        self.genome.fasta_path = fasta_path
         with open(self.gtf_path) as f:
             for linea in f.readlines():
                 line_dic = self._parse_line(linea)
@@ -35,19 +36,36 @@ class Gtf:
                 elif line_dic['type'] == 'stop_codon':
                     trans.cds_stop = ft.fix_order(line_dic['start'], line_dic['stop'], trans.strand)[0]
                 elif line_dic['type'] == 'exon':
-                    self._set_exon(line_dic['start'], line_dic['stop'], int(line_dic['exon_number']), trans, gene)
+                    self._set_exon(line_dic['start'], line_dic['stop'], trans, gene, int(line_dic['exon_number']), line_dic['exon_id'])
                 elif line_dic['type'] == 'CDS':
                     trans.add_cds(line_dic['start'], line_dic['stop'])
+        if predict_noncoding_cds:
+            self.set_noncoding_cds()
         return self.genome
 
+    def set_noncoding_cds(self):
+        for trans in self.genome.transcripts:
+            if not trans.cds_start:
+                continue
+            cds_start_exon = trans.exon_with(trans.cds_start)
+            cds_start_exon.cds_start = trans.cds_start
+            self._add_cds_from_exon(cds_start_exon)
+
     @staticmethod
-    def _set_exon(start, stop, num, trans, gene):
+    def _add_cds_from_exon(exon):
+        for trans in exon.transcripts:
+            if trans.cds_stop:
+                continue
+            trans.set_cds_from_start(exon.cds_start)
+
+    @staticmethod
+    def _set_exon(start, stop, trans, gene, num, id):
         if (start, stop) in gene.exons_dict:
             exon = gene.exons_dict[(start, stop)]
-            exon.add_transcript(trans)
+            exon.add_transcript(trans, num)
         else:
-            exon = ft.Exon(num, trans, start, stop)
-            gene.add_exon(exon)
+            exon = ft.Exon(id, num, trans, start, stop)
+            gene.add_exon(exon, start, stop)
 
     @staticmethod
     def _get_transcript(attr, gene):
@@ -206,7 +224,6 @@ class BedGraph:
                 continue
             for base in range(interval['start'] + 1, interval['stop'] + 1):
                 yield base, interval['score']
-
 
     @staticmethod
     def _parse_line(linea, delim='\t'):
