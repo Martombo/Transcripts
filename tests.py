@@ -49,12 +49,12 @@ class TestExons(ut.TestCase):
     def test_distance_from_start(self):
         trans1 = ft.Transcript('t1', self.gene1)
         exon1 = ft.Exon(1, trans1, 100, 200)
-        self.assertEqual(10, exon1.distance_from_start(110))
+        self.assertEqual(10, exon1.relative_position(110))
 
     def test_distance_from_start_rev(self):
         trans1 = ft.Transcript('t1', self.gene1_rev)
         exon1 = ft.Exon(1, trans1, 100, 200)
-        self.assertEqual(70, exon1.distance_from_start(130))
+        self.assertEqual(70, exon1.relative_position(130))
 
     def test_includes(self):
         trans1 = ft.Transcript('t1', self.gene1_rev)

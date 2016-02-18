@@ -183,7 +183,7 @@ class Transcript:
     def five_utr_len(self):
         if not self.cds_start:
             return 0
-        return self.distance_from_start(self.cds_start)
+        return self.relative_position(self.cds_start)
 
     @property
     def cds_len(self):
@@ -200,9 +200,14 @@ class Transcript:
         if self.cds_start <= pos <= self.cds_stop or self.cds_start >= pos >= self.cds_stop:
             return True
 
-    def get_sequence(self):
-        """returns the whole transcript sequence"""
-        return ''.join([exon.get_sequence() for exon in self.exons])
+    def get_sequence(self, start_stop=None):
+        """returns the transcript sequence between start and stop, or the whole"""
+        whole_seq = ''.join([exon.get_sequence() for exon in self.exons])
+        if not start_stop:
+            return whole_seq
+        rel_start = self.relative_position(start_stop[0])
+        rel_stop = self.relative_position(start_stop[1])
+        return whole_seq[rel_start:rel_stop]
 
     def get_5utr_seq(self):
         if self.cds_start:
@@ -237,34 +242,16 @@ class Transcript:
         for exon_n in range(1, len(exons)):
             self.splice_sites.append(str(exons[exon_n - 1].stop) + '_' + str(exons[exon_n].start))
 
-    def distance_from_start(self, pos):
+    def relative_position(self, pos):
         distance = 0
-        for exon in self.exon_dict.values():
+        for exon in self.exons:
             if exon.includes(pos):
-                return distance + exon.distance_from_start(pos)
+                return distance + exon.relative_position(pos)
             distance += len(exon)
         return distance
 
-    def distance_from_cds_start(self, pos):
-        if not self.cds_start:
-            return
-        distance = 0
-        for exon in self.exon_dict.values():
-            if exon.includes(pos):
-                if exon.includes(self.cds_start):
-                    return abs(self.cds_start - pos)
-                return distance + exon.distance_from_start(pos)
-            elif exon.includes(self.cds_start):
-                distance += abs(self.cds_start - exon.stop) + 1
-            else:
-                distance += len(exon)
-
     def distance_to_end(self, pos):
-        distance = 0
-        for exon in list(self.exons)[::-1]:
-            if exon.includes(pos):
-                return distance + exon.distance_to_end(pos)
-            distance += len(exon)
+        return len(self) - self.relative_position(pos)
 
     def intervals(self, start, stop):
         """given chrom positions start and stop in transcript, returns the exonic intervals"""
@@ -345,7 +332,7 @@ class Transcript:
             start += 1
             if not self.in_cds(start):
                 continue
-            rel_pos = self.distance_from_cds_start(start)
+            rel_pos = self.relative_position(start)
             rel_starts[rel_pos] = n_reads
         return rel_starts
 
@@ -428,11 +415,8 @@ class Exon:
             return ''
         return self.gene.get_sequence(sorted((start, self.stop)))
 
-    def distance_from_start(self, pos):
+    def relative_position(self, pos):
         return abs(self.start - pos)
-
-    def distance_to_end(self, pos):
-        return abs(self.stop - pos)
 
     def includes(self, pos):
         if self.genomic_start <= pos <= self.genomic_stop:
