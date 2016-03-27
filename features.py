@@ -9,7 +9,7 @@ class Genome:
         self.chroms_dict = {}
 
     def get_sequence(self, chrom, start_stop, strand):
-        """finds the sequence of a genomic interval '1:387941-388099', '+' """
+        """finds the sequence of a genomic interval '1', [387941,388099], '+' """
         assert self.fasta_path
         pos_string = chrom + ':' + str(start_stop[0]) + '-' + str(start_stop[1])
         samtools_cmm = ['samtools', 'faidx', self.fasta_path, pos_string]

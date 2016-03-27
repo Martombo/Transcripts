@@ -203,12 +203,13 @@ class Bam:
             strand_bool = not strand_bool
         return '+' if strand_bool else '-'
 
-    def del_pos_len(self, read, max_len=2):
+    @staticmethod
+    def del_pos_len(read, max_len=2):
         """
         returns the relative and the absolute position of the first deletion on the read, if any
         :param read: the read (pysam object)
         """
-        rel_pos, abs_pos = 0, read.query_alignment_start
+        rel_pos, abs_pos = 0, read.reference_start
         for cigar_token in read.cigartuples:
             if cigar_token[0] == 0:
                 rel_pos += cigar_token[1]
@@ -216,10 +217,9 @@ class Bam:
             if cigar_token[0] == 1:
                 rel_pos += cigar_token[1]
             if cigar_token[0] == 2 and cigar_token[1] <= max_len:
-                return {'rel_pos': rel_pos, 'abs_pos': abs_pos, 'del_len': cigar_token[1]}
+                return rel_pos, abs_pos, cigar_token[1]
             if cigar_token[0] == 3:
                 abs_pos += cigar_token[1]
-
 
 
 class BedGraph:
