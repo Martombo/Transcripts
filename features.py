@@ -193,8 +193,13 @@ class Transcript:
 
     @property
     def tss(self):
-        if len(self.exon_dict) > 0:
-            return self.exon_dict[0].start
+        if 1 in self.exon_dict:
+            return self.exon_dict[1].start
+
+    @property
+    def tstop(self):
+        if 1 in self.exon_dict:
+            return self.exon_dict[len(self.exon_dict)].stop
 
     def in_cds(self,pos):
         if self.cds_start <= pos <= self.cds_stop or self.cds_start >= pos >= self.cds_stop:
