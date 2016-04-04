@@ -109,6 +109,9 @@ class Gene:
         self.strand = strand
         self.trans_dict, self.exons_dict = {}, {}
 
+    def __repr__(self):
+        return self.id
+
     def __len__(self):
         return max([len(trans) for trans in self.transcripts] + [0])
 
@@ -152,6 +155,9 @@ class Transcript:
         self.gene.trans_dict[id] = self
         self.exon_dict, self.splice_sites = {}, []
         self.cds_start, self.cds_stop = fix_order(cds_start, cds_stop, self.strand)
+
+    def __repr__(self):
+        return self.id
 
     def __len__(self):
         return sum([len(exon) for exon in self.exon_dict.values()])
@@ -213,15 +219,6 @@ class Transcript:
         rel_start = self.relative_position(start_stop[0])
         rel_stop = self.relative_position(start_stop[1])
         return whole_seq[rel_start:rel_stop]
-
-    def get_5utr_seq(self):
-        if self.cds_start:
-            return ''.join([exon.get_seq_from_start(self.cds_start) for exon in self.exons])
-
-    def get_3utr_seq(self):
-        if self.cds_stop:
-            first_3utr = move_pos(self.cds_stop, +3, self.strand)
-            return ''.join([exon.get_seq_to_stop(first_3utr) for exon in self.exons])
 
     def get_exons_from_splice_site(self, start, stop):
         query = '_'.join([str(x) for x in fix_order(start, stop, self.strand)])
@@ -368,6 +365,12 @@ class Exon:
         self.cds_start = cds_start
         transcript.add_exon(self, num)
 
+    def __repr__(self):
+        return self.id
+
+    def __len__(self):
+        return self.genomic_stop - self.genomic_start + 1
+
     @property
     def gene(self):
         return self.transcripts[0].gene
@@ -386,9 +389,6 @@ class Exon:
                     before_strand(self.start, trans.cds_stop, self.strand) and \
                     before_strand(trans.cds_start, self.stop, self.strand):
                 yield trans
-
-    def __len__(self):
-        return self.genomic_stop - self.genomic_start + 1
 
     def add_transcript(self, trans, num):
         self.transcripts.append(trans)
