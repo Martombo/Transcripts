@@ -5,7 +5,6 @@ import pysam
 
 
 class TestFeatureGeneral(ut.TestCase):
-
     def test_fix_order(self):
         sites = ft.fix_order(10, 20, '+')
         self.assertLess(sites[0], sites[1])
@@ -23,11 +22,11 @@ class TestFeatureGeneral(ut.TestCase):
         self.assertGreater(sites[0], sites[1])
 
     def test_move_pos(self):
-        pos = ft.move_pos(100,+10, '+')
+        pos = ft.move_pos(100, +10, '+')
         self.assertEqual(110, pos)
 
     def test_move_pos2(self):
-        pos = ft.move_pos(100,+10, '-')
+        pos = ft.move_pos(100, +10, '-')
         self.assertEqual(90, pos)
 
     def test_before_strand(self):
@@ -41,30 +40,44 @@ class TestFeatureGeneral(ut.TestCase):
 
 
 class TestExons(ut.TestCase):
-
     chr1 = ft.Chromosome('chr1')
     gene1 = ft.Gene('g1', chr1, 'gene1', '+')
     gene1_rev = ft.Gene('g1', chr1, 'gene1', '-')
 
     def test_distance_from_start(self):
         trans1 = ft.Transcript('t1', self.gene1)
-        exon1 = ft.Exon(1, trans1, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans1, 100, 200)
         self.assertEqual(10, exon1.relative_position(110))
 
     def test_distance_from_start_rev(self):
         trans1 = ft.Transcript('t1', self.gene1_rev)
-        exon1 = ft.Exon(1, trans1, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans1, 100, 200)
         self.assertEqual(70, exon1.relative_position(130))
 
     def test_includes(self):
         trans1 = ft.Transcript('t1', self.gene1_rev)
-        exon1 = ft.Exon(1, trans1, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans1, 100, 200)
         self.assertTrue(exon1.includes(exon1.start))
         self.assertTrue(exon1.includes(exon1.genomic_stop))
 
+    def test_sequence(self):
+        genom = ft.Genome(fasta_path='/Users/martin/notDropbox/utils/gNome/Homo_sapiens.GRCh38.dna.primary_assembly.fa')
+        chr1 = ft.Chromosome('1', genome=genom)
+        gene1 = ft.Gene('g1', chr1, 'gene1', '+')
+        trans1 = ft.Transcript('t1', gene1)
+        start = 11869
+        stop = 12227
+        exon1 = ft.Exon('e1', 1, trans1, start, stop)
+        seq = exon1.get_sequence()
+        self.assertEqual(stop - start + 1, len(seq))
+        self.assertEqual('GTTAACTTGCCGTCAGCCTTTTCTTTGACCTCTTCTTTCTGTTCATGTGTATTTGCTGTCTCTTAGCCCAGACTTCCCGTGTCCTTTCC' +
+                         'ACCGGGCCTTTGAGAGGTCACAGGGTCTTGATGCTGTGGTCTTCATCTGCAGGTGTCTGACTTCCAGCAACTGCTGGCCTGTGCCAGGG' +
+                         'TGCAAGCTGAGCACTGGAGTGGAGTTTTCCTGTGGAGAGGAGCCATGCCTAGAGTGGGATGGGCCATTGTTCATCTTCTGGCCCCTGTT' +
+                         'GTCTGCATGTAACTTAATACCACAACCAGGCATAGGGGAAAGATTGGAGGAAAGATGAGTGAGAGCATCAACTTCTCTCACAACCTAGG' +
+                         'CCA', seq)
+
 
 class TestTranscripts(ut.TestCase):
-
     chr1 = ft.Chromosome('chr1')
     gene1 = ft.Gene('g1', chr1, 'gene1', '+')
     gene2 = ft.Gene('g1', chr1, 'gene1', '-')
@@ -229,7 +242,6 @@ class TestTranscripts(ut.TestCase):
 
 
 class TestGene(ut.TestCase):
-
     chr1 = ft.Chromosome('chr1')
     gene1 = ft.Gene('g1', chr1, 'gene1', '+')
     trans1 = ft.Transcript('t1', gene1)
@@ -242,7 +254,6 @@ class TestGene(ut.TestCase):
 
 
 class TestChromosome(ut.TestCase):
-
     chr1 = ft.Chromosome('chr1')
     gene1 = ft.Gene('g1', chr1)
     trans1 = ft.Transcript('t1', gene1)
@@ -258,7 +269,6 @@ class TestChromosome(ut.TestCase):
 
 
 class TestSequence(ut.TestCase):
-
     def test_is_start(self):
         seq = ft.Sequence('AAAAAATGCCCCCC')
         self.assertFalse(seq.is_start(0))
@@ -300,7 +310,6 @@ class TestSequence(ut.TestCase):
 
 
 class TestReaderGtf(ut.TestCase):
-
     attr = 'gene_id "ENSG00000223972"; gene_version "5"; gene_name "DDX11L1"; gene_source "havana"; gene_biotype "transcribed_unprocessed_pseudogene"; transcript_id "ENST00000249857"; exon_number "1";\n'
     mocking = '\t'.join(['1', 'havana', 'exon', '11869', '14409', '.', '+', '.', attr])
 
@@ -317,7 +326,6 @@ class TestReaderGtf(ut.TestCase):
 
 
 class TestReaderBam(ut.TestCase):
-
     read = pysam.AlignedSegment()
     parser_bam = rd.Bam(test=True)
 
@@ -330,7 +338,7 @@ class TestReaderBam(ut.TestCase):
     def test_det_strand_rev(self):
         self.read.is_reverse = True
         self.read.is_read2 = False
-        self.assertNotEqual('reverse',self.parser_bam.reads_orientation)
+        self.assertNotEqual('reverse', self.parser_bam.reads_orientation)
         strand = self.parser_bam.determine_strand(self.read)
         self.assertEquals('-', strand)
 

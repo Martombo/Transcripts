@@ -3,15 +3,14 @@ import os
 
 
 class Genome:
-
     def __init__(self, fasta_path=''):
         self.fasta_path = fasta_path
         self.chroms_dict = {}
 
-    def get_sequence(self, chrom, start_stop, strand):
-        """finds the sequence of a genomic interval '1', [387941,388099], '+' """
+    def get_sequence(self, chrom, start, stop, strand):
+        """finds the sequence of a 1-indexed genomic interval '1', 387941, 388099, '+' """
         assert self.fasta_path
-        pos_string = chrom + ':' + str(start_stop[0]) + '-' + str(start_stop[1])
+        pos_string = chrom + ':' + str(start) + '-' + str(stop)
         samtools_cmm = ['samtools', 'faidx', self.fasta_path, pos_string]
         samtools_out = sp.check_output(samtools_cmm).decode()
         seq = fasta2seq(samtools_out)
@@ -38,7 +37,6 @@ class Genome:
 
 
 class Chromosome:
-
     def __init__(self, name, genome=None):
         self.name = name
         self.genes_dict, self.ordered_transs = {}, []
@@ -47,8 +45,8 @@ class Chromosome:
             genome.chroms_dict[name] = self
         self.coverage = {'+': {}, '-': {}}
 
-    def get_sequence(self, start_stop, strand):
-        return self.genome.get_sequence(self.name, start_stop, strand)
+    def get_sequence(self, start, stop, strand):
+        return self.genome.get_sequence(self.name, start, stop, strand)
 
     def ordered_transcripts_tss(self):
         for trans in self.transcripts:
@@ -100,7 +98,6 @@ class Chromosome:
 
 
 class Gene:
-
     def __init__(self, id, chromosome, name='', strand=''):
         self.id = id
         self.name = name
@@ -128,8 +125,8 @@ class Gene:
     def add_exon(self, exon, start, stop):
         self.exons_dict[(start, stop)] = exon
 
-    def get_sequence(self, start_stop):
-        return self.chromosome.get_sequence(start_stop, self.strand)
+    def get_sequence(self, start, stop):
+        return self.chromosome.get_sequence(start, stop, self.strand)
 
     def most_upstream_trans(self):
         transs = list(self.transcripts)
@@ -147,7 +144,6 @@ class Gene:
 
 
 class Transcript:
-
     def __init__(self, id, gene=None, cds_start=None, cds_stop=None, tss=None, biotype=None):
         self.id = id
         self.gene = gene
@@ -207,17 +203,15 @@ class Transcript:
         if 1 in self.exon_dict:
             return self.exon_dict[len(self.exon_dict)].stop
 
-    def in_cds(self,pos):
+    def in_cds(self, pos):
         if self.cds_start <= pos <= self.cds_stop or self.cds_start >= pos >= self.cds_stop:
             return True
 
-    def get_sequence(self, start_stop=None):
+    def get_sequence(self, start=None, stop=None):
         """returns the transcript sequence between start and stop, or the whole"""
         whole_seq = ''.join([exon.get_sequence() for exon in self.exons])
-        if not start_stop:
-            return whole_seq
-        rel_start = self.relative_position(start_stop[0])
-        rel_stop = self.relative_position(start_stop[1])
+        rel_start = self.relative_position(start) if start else 0
+        rel_stop = self.relative_position(stop) if stop else len(whole_seq)
         return whole_seq[rel_start:rel_stop]
 
     def get_exons_from_splice_site(self, start, stop):
@@ -297,7 +291,7 @@ class Transcript:
         if path > length:
             return move_pos(pos, length, self.strand)
         length -= path
-        for exon in exons[start_n+1:]:
+        for exon in exons[start_n + 1:]:
             if len(exon) > length:
                 return move_pos(exon.start, length, self.strand)
             length -= len(exon)
@@ -315,7 +309,7 @@ class Transcript:
         length -= path
         if start_n == 0:
             return
-        for exon in exons[start_n-1::-1]:
+        for exon in exons[start_n - 1::-1]:
             if len(exon) > length:
                 return move_pos(exon.stop, -length, self.strand)
             length -= len(exon)
@@ -355,7 +349,6 @@ class Transcript:
 
 
 class Exon:
-
     def __init__(self, id, num, transcript, start, stop, cds_start=None):
         self.id = id
         self.transcripts = [transcript]
@@ -396,7 +389,7 @@ class Exon:
 
     def get_sequence(self):
         """returns the whole exon sequence"""
-        return self.gene.get_sequence((self.genomic_start, self.genomic_stop))
+        return self.gene.get_sequence(self.genomic_start, self.genomic_stop)
 
     def get_seq_from_start(self, stop):
         """
@@ -431,18 +424,17 @@ class Exon:
     def gtf(self):
         transs = '_'.join([x.id + '.' + self.id for x in self.transcripts])
         return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
-                         self.strand, 'gene_id "' + transs + '";'])
+                          self.strand, 'gene_id "' + transs + '";'])
 
     def gtf_coding(self):
         coding_transcripts = self.coding_transcripts()
         if coding_transcripts:
             transs = '_'.join([x.id + '.' + self.id for x in coding_transcripts])
             return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
-                         self.strand, 'gene_id "' + transs + '";'])
+                              self.strand, 'gene_id "' + transs + '";'])
 
 
 class GenomicOverlay:
-
     def __init__(self, chromosome, n_quantiles=50):
         """for the moment it deals only with continuous intervals"""
         self.chromosome = chromosome
@@ -468,7 +460,6 @@ class GenomicOverlay:
 
 
 class GenomicLayer:
-
     def __init__(self, start, stop, strand, overlay=None):
         self.start, self.stop = start, stop
         self.strand = strand
@@ -500,7 +491,6 @@ class GenomicLayer:
 
 
 class GenomicPoint:
-
     def __init__(self, pos, score, n_quantile):
         self.pos = pos
         self.score = score
@@ -508,7 +498,6 @@ class GenomicPoint:
 
 
 class Sequence:
-
     def __init__(self, seq):
         self.seq = seq
         self.len = len(seq)
@@ -544,11 +533,11 @@ class Sequence:
 
     def is_start(self, pos):
         assert pos < len(self.seq) - 2
-        return self.seq[pos:pos+3] == 'ATG'
+        return self.seq[pos:pos + 3] == 'ATG'
 
     def is_stop(self, pos):
         assert pos >= 0
-        return self.seq[pos:pos+3] in ['TAA', 'TGA', 'TAG']
+        return self.seq[pos:pos + 3] in ['TAA', 'TGA', 'TAG']
 
     def run_RNAplfold(self):
         p1 = sp.Popen(['echo', self.seq], stdout=sp.PIPE, close_fds=True)
