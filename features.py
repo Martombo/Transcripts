@@ -546,6 +546,13 @@ class Sequence:
         p2.communicate()
         return self._parse_RNAplfold()
 
+    def run_RNAfold(self, skip_matches=0):
+        p1 = sp.Popen(['echo', self.seq], stdout=sp.PIPE, close_fds=True)
+        p2 = sp.Popen(['RNAfold', '--noPS'], stdin=p1.stdout, stdout=sp.PIPE, close_fds=True)
+        p1.stdout.close()
+        output = p2.communicate()
+        return self._parse_RNAfold(output[0].decode(), skip_matches)
+
     def _parse_RNAplfold(self):
         tot_score, fout = 0, 'plfold_basepairs'
         if os.path.isfile(fout):
@@ -554,6 +561,20 @@ class Sequence:
                 tot_score += float(splat[2])
             os.remove(fout)
         return tot_score
+
+    def _parse_RNAfold(self, output, skip_matches=0):
+        linea = output.split('\n')[1]
+        fold = linea.split(' ')[0]
+        n_par, dis = 0, 0
+        for char in fold:
+            if char == '(':
+                n_par += 1
+            elif char == ')':
+                n_par -= 1
+            if n_par <= skip_matches:
+                dis += 1
+        return dis
+
 
 
 def fix_order(pos1, pos2, strand):
