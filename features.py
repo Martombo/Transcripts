@@ -553,6 +553,15 @@ class Sequence:
         output = p2.communicate()
         return self._parse_RNAfold(output[0].decode(), skip_matches)
 
+    def run_RNAduplex(self, query_seq):
+        p1 = sp.Popen(['echo', self.seq, query_seq], stdout=sp.PIPE, close_fds=True)
+        p2 = sp.Popen(['xargs', '-n1'], stdin=p1.stdout, stdout=sp.PIPE, close_fds=True)
+        p3 = sp.Popen(['RNAduplex', '-s'], stdin=p2.stdout, stdout=sp.PIPE, close_fds=True)
+        p1.stdout.close()
+        p2.stdout.close()
+        output = p3.communicate()
+        return self._parse_RNAduplex(output[0].decode())
+
     def _parse_RNAplfold(self):
         tot_score, fout = 0, 'plfold_basepairs'
         if os.path.isfile(fout):
@@ -575,6 +584,12 @@ class Sequence:
                 dis += 1
         return dis
 
+    def _parse_RNAduplex(self, linea):
+        linea = linea.rstrip('\n')
+        splat = [x for x in linea.split(' ') if x]
+        self_start = splat[1].split(',')[0]
+        energy = float(splat[4].lstrip('(').rstrip(')'))
+        return self_start, energy
 
 
 def fix_order(pos1, pos2, strand):
