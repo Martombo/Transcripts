@@ -588,7 +588,7 @@ class Sequence:
         linea = linea.rstrip('\n')
         splat = [x for x in linea.split(' ') if x]
         self_start = splat[1].split(',')[0]
-        energy = float(splat[4].lstrip('(').rstrip(')'))
+        energy = float(splat[-1].lstrip('(').rstrip(')'))
         return self_start, energy
 
 
