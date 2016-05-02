@@ -525,6 +525,12 @@ class Sequence:
                     orfs.append([pos, stop])
         return orfs
 
+    def previous_start(self, pos):
+        while pos >= 0:
+            if self.is_start(pos):
+                return pos
+            pos -= 3
+
     def next_stop(self, pos):
         while pos < len(self) - 2:
             if self.is_stop(pos):
