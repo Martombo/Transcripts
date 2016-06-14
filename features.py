@@ -231,7 +231,7 @@ class Transcript:
 
     def get_stop_counts(self, bam):
         if self.tss:
-            return bam.get_coverage(self.chromosome.name, move_pos(self.tss, -10, self.strand) - 1, strand=self.strand)
+            return bam.get_coverage(self.chromosome.name, move_pos(self.cds_stop, -5, self.strand) - 1, strand=self.strand)
 
     def add_splice_sites(self):
         exons = list(self.exons)
@@ -249,7 +249,7 @@ class Transcript:
     def distance_to_end(self, pos):
         return len(self) - self.relative_position(pos)
 
-    def intervals(self, start, stop):
+    def intervals(self, start=tss, stop=tstop):
         """given chrom positions start and stop in transcript, returns the exonic intervals"""
         start, stop = fix_order(start, stop, self.strand)
         after_start = False
@@ -314,15 +314,16 @@ class Transcript:
                 return move_pos(exon.stop, -length, self.strand)
             length -= len(exon)
 
-    def get_cds_relative_starts(self, bam, min_qual=40):
+    def get_cds_relative_starts(self, bam, min_qual=40, read_len=[]):
         """
         saves the relative position of read starts sites overlapping its cds
         :param bam: a bam object (from reader module)
         :param min_qual: default TopHat: only uniquely mapped reads
+        :param read_len: only consider reads whose length is in this list
         :return: a dict with 1-based starts as key and number of reads as value
         """
         start_stop = fix_order(self.cds_start, self.cds_stop, '+')
-        starts_dict = bam.get_read_starts(self.chromosome.name, start_stop[0], start_stop[1], self.strand, min_qual)
+        starts_dict = bam.get_read_starts(self.chromosome.name, start_stop[0], start_stop[1], self.strand, min_qual, read_len)
         rel_starts = {}
         for start, n_reads in starts_dict.items():
             start += 1
