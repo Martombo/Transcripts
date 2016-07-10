@@ -234,9 +234,21 @@ class Transcript:
             return bam.get_coverage(self.chromosome.name, move_pos(self.cds_stop, -5, self.strand) - 1, strand=self.strand)
 
     def add_splice_sites(self):
+        # deprecated!
+        # not executed by Gtf reader
         exons = list(self.exons)
         for exon_n in range(1, len(exons)):
             self.splice_sites.append(str(exons[exon_n - 1].stop) + '_' + str(exons[exon_n].start))
+
+    def ups_splice_intervals(self, up_distance=200, dw_distance=200):
+        exons = list(self.exons)
+        for exon in exons[:-1]:
+            start = self.abs_pos_upstream(exon.stop, up_distance)
+            if not start:
+                continue
+            intervals = list(self.intervals(start, exon.stop))
+            intervals[-1] = (intervals[-1][0], move_pos(exon.stop, dw_distance, self.strand))
+            yield intervals
 
     def relative_position(self, pos):
         distance = 0

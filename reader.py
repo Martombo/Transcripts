@@ -157,7 +157,7 @@ class Bam:
         :param stop: int stop 0-based
         :param strand: '+', '-' or None
         :param min_qual: default TopHat: only uniquely mapped list
-        :param read_len: only consider reads whose length is in this array
+        :param read_len: only consider reads whose length is in this list
         :return: a dict with starts as key and number of reads as value
         """
         fetch = self.pysam.fetch(chrom, start, stop)
