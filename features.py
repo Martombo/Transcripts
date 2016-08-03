@@ -250,6 +250,17 @@ class Transcript:
             intervals[-1] = (intervals[-1][0], move_pos(exon.stop, dw_distance, self.strand))
             yield intervals
 
+    def dws_splice_intervals(self, up_distance=200, dw_distance=200):
+        exons = list(self.exons)
+        for exon in exons[1:]:
+            stop = self.abs_pos_downstream(exon.start, dw_distance)
+            if not stop:
+                continue
+            intervals = list(self.intervals(exon.start, stop))
+            anti_strand = '+' if self.strand == '-' else '-'
+            intervals[0] = (move_pos(exon.start, up_distance, anti_strand), intervals[0][1])
+            yield intervals
+
     def relative_position(self, pos):
         distance = 0
         for exon in self.exons:
