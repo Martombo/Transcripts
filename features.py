@@ -128,6 +128,12 @@ class Gene:
     def get_sequence(self, start, stop):
         return self.chromosome.get_sequence(start, stop, self.strand)
 
+    def includes(self, pos):
+        for trans in self.transcripts:
+            if trans.includes(pos):
+                return True
+        return False
+
     def most_upstream_trans(self):
         transs = list(self.transcripts)
         if not transs[0]:
@@ -229,10 +235,6 @@ class Transcript:
             self.cds_stop = fix_order(self.cds_stop, stop, self.strand)[1]
         self.cds_start = fix_order(self.cds_start, start, self.strand)[0]
 
-    def get_stop_counts(self, bam):
-        if self.tss:
-            return bam.get_coverage(self.chromosome.name, move_pos(self.cds_stop, -5, self.strand) - 1, strand=self.strand)
-
     def add_splice_sites(self):
         # deprecated!
         # not executed by Gtf reader
@@ -257,8 +259,7 @@ class Transcript:
             if not stop:
                 continue
             intervals = list(self.intervals(exon.start, stop))
-            anti_strand = '+' if self.strand == '-' else '-'
-            intervals[0] = (move_pos(exon.start, up_distance, anti_strand), intervals[0][1])
+            intervals[0] = (move_pos(exon.start, - up_distance, self.strand), intervals[0][1])
             yield intervals
 
     def relative_position(self, pos):
@@ -298,10 +299,15 @@ class Transcript:
                 return exon_n
 
     def exon_with(self, pos):
-        """returns the number of the exon that has pos"""
+        """returns the exon that has pos"""
         for exon in self.exons:
             if exon.includes(pos):
                 return exon
+
+    def includes(self, pos):
+        if self.exon_with(pos):
+            return True
+        return False
 
     def abs_pos_downstream(self, pos, length):
         """

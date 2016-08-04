@@ -77,6 +77,35 @@ class TestExons(ut.TestCase):
                          'CCA', seq)
 
 
+class TestGene(ut.TestCase):
+    chr1 = ft.Chromosome('chr1')
+    gene1 = ft.Gene('g1', chr1, 'gene1', '+')
+    trans1 = ft.Transcript('t1', gene1)
+    trans2 = ft.Transcript('t2', gene1)
+    exon1 = ft.Exon('e1', 1, trans1, 100, 200)
+    exon2 = ft.Exon('e2', 2, trans1, 300, 400)
+    exon3 = ft.Exon('e3', 1, trans2, 500, 700)
+    exon4 = ft.Exon('e4', 2, trans2, 800, 900)
+
+    def test_transcripts(self):
+        n = 0
+        for trans in self.gene1.transcripts:
+            n += 1
+        self.assertEqual(2, n)
+
+    def test_included1(self):
+        self.assertTrue(self.gene1.includes(150))
+
+    def test_included2(self):
+        self.assertTrue(self.gene1.includes(850))
+
+    def test_not_included1(self):
+        self.assertFalse(self.gene1.includes(250))
+
+    def test_not_included2(self):
+        self.assertFalse(self.gene1.includes(1000))
+
+
 class TestTranscripts(ut.TestCase):
     chr1 = ft.Chromosome('chr1')
     gene1 = ft.Gene('g1', chr1, 'gene1', '+')
@@ -84,13 +113,13 @@ class TestTranscripts(ut.TestCase):
 
     def test_simple(self):
         trans1 = ft.Transcript('t1', self.gene1)
-        exon1 = ft.Exon(1, trans1, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans1, 100, 200)
         self.assertEquals(0, len(trans1.splice_sites))
 
     def test_2exons(self):
         trans1 = ft.Transcript('t1', self.gene1)
-        exon1 = ft.Exon(1, trans1, 100, 200)
-        exon2 = ft.Exon(2, trans1, 300, 400)
+        exon1 = ft.Exon('e1', 1, trans1, 100, 200)
+        exon2 = ft.Exon('e2', 2, trans1, 300, 400)
         self.assertEquals(2, len(trans1.exon_dict))
 
     def test_2trans(self):
@@ -126,91 +155,91 @@ class TestTranscripts(ut.TestCase):
 
     def test_abs_pos_dw_1exon(self):
         trans = ft.Transcript('t', self.gene1)
-        exon1 = ft.Exon(1, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
         pos = trans.abs_pos_downstream(150, 10)
         self.assertEqual(160, pos)
 
     def test_abs_pos_dw_2exons(self):
         trans = ft.Transcript('t', self.gene1)
-        exon1 = ft.Exon(1, trans, 100, 200)
-        exon2 = ft.Exon(2, trans, 300, 400)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
+        exon2 = ft.Exon('e2', 2, trans, 300, 400)
         pos = trans.abs_pos_downstream(150, 100)
         self.assertEqual(349, pos)
 
     def test_abs_pos_dw_3exons(self):
         trans = ft.Transcript('t', self.gene1)
-        exon1 = ft.Exon(1, trans, 100, 200)
-        exon2 = ft.Exon(2, trans, 300, 400)
-        exon2 = ft.Exon(3, trans, 800, 900)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
+        exon2 = ft.Exon('e2', 2, trans, 300, 400)
+        exon2 = ft.Exon('e3', 3, trans, 800, 900)
         pos = trans.abs_pos_downstream(150, 200)
         self.assertEqual(848, pos)
 
     def test_abs_pos_dw_1exon_rev(self):
         trans = ft.Transcript('t', self.gene2)
-        exon1 = ft.Exon(1, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
         pos = trans.abs_pos_downstream(150, 10)
         self.assertEqual(140, pos)
 
     def test_abs_pos_dw_2exons_rev(self):
         trans = ft.Transcript('t', self.gene2)
-        exon1 = ft.Exon(1, trans, 300, 400)
-        exon2 = ft.Exon(2, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 300, 400)
+        exon2 = ft.Exon('e2', 2, trans, 100, 200)
         pos = trans.abs_pos_downstream(350, 100)
         self.assertEqual(151, pos)
 
     def test_abs_pos_dw_3exons_rev(self):
         trans = ft.Transcript('t', self.gene2)
-        exon1 = ft.Exon(1, trans, 600, 700)
-        exon2 = ft.Exon(2, trans, 300, 400)
-        exon3 = ft.Exon(3, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 600, 700)
+        exon2 = ft.Exon('e2', 2, trans, 300, 400)
+        exon3 = ft.Exon('e3', 3, trans, 100, 200)
         pos = trans.abs_pos_downstream(650, 200)
         self.assertEqual(152, pos)
 
     def test_abs_pos_up_1exon(self):
         trans = ft.Transcript('t', self.gene1)
-        exon1 = ft.Exon(1, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
         pos = trans.abs_pos_upstream(150, 10)
         self.assertEqual(140, pos)
 
     def test_abs_pos_up_2exons(self):
         trans = ft.Transcript('t', self.gene1)
-        exon1 = ft.Exon(1, trans, 100, 200)
-        exon2 = ft.Exon(2, trans, 300, 400)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
+        exon2 = ft.Exon('e2', 2, trans, 300, 400)
         pos = trans.abs_pos_upstream(340, 100)
         self.assertEqual(141, pos)
 
     def test_abs_pos_up_3exons(self):
         trans = ft.Transcript('t', self.gene1)
-        exon1 = ft.Exon(1, trans, 100, 200)
-        exon2 = ft.Exon(2, trans, 300, 400)
-        exon2 = ft.Exon(3, trans, 800, 923)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
+        exon2 = ft.Exon('e2', 2, trans, 300, 400)
+        exon2 = ft.Exon('e3', 3, trans, 800, 923)
         pos = trans.abs_pos_upstream(820, 210)
         self.assertEqual(112, pos)
 
     def test_abs_pos_up_1exon_rev(self):
         trans = ft.Transcript('t', self.gene2)
-        exon1 = ft.Exon(1, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
         pos = trans.abs_pos_upstream(150, 10)
         self.assertEqual(160, pos)
 
     def test_abs_pos_up_2exons_rev(self):
         trans = ft.Transcript('t', self.gene2)
-        exon1 = ft.Exon(1, trans, 400, 500)
-        exon2 = ft.Exon(2, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 400, 500)
+        exon2 = ft.Exon('e2', 2, trans, 100, 200)
         pos = trans.abs_pos_upstream(120, 110)
         self.assertEqual(429, pos)
 
     def test_intervals_1exon(self):
         trans = ft.Transcript('t', self.gene1)
-        exon1 = ft.Exon(1, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
         inter = list(trans.intervals(140, 160))[0]
         self.assertEqual(140, inter[0])
         self.assertEqual(160, inter[1])
 
     def test_intervals_2exon(self):
         trans = ft.Transcript('t', self.gene1)
-        exon1 = ft.Exon(1, trans, 100, 200)
-        exon2 = ft.Exon(2, trans, 300, 400)
+        exon1 = ft.Exon('e1', 1, trans, 100, 200)
+        exon2 = ft.Exon('e2', 2, trans, 300, 400)
         inter = list(trans.intervals(140, 360))
         self.assertEqual(140, inter[0][0])
         self.assertEqual(200, inter[0][1])
@@ -219,38 +248,13 @@ class TestTranscripts(ut.TestCase):
 
     def test_intervals_2exon_rev(self):
         trans = ft.Transcript('t', self.gene2)
-        exon1 = ft.Exon(1, trans, 300, 400)
-        exon2 = ft.Exon(2, trans, 100, 200)
+        exon1 = ft.Exon('e1', 1, trans, 300, 400)
+        exon2 = ft.Exon('e2', 2, trans, 100, 200)
         inter = list(trans.intervals(360, 140))
         self.assertEqual(360, inter[0][0])
         self.assertEqual(300, inter[0][1])
         self.assertEqual(200, inter[1][0])
         self.assertEqual(140, inter[1][1])
-
-    def test_distance_from_tss_1exon(self):
-        trans = ft.Transcript('t', self.gene1)
-        trans.cds_start = 110
-        exon1 = ft.Exon(1, trans, 100, 200)
-        self.assertEqual(10, trans.distance_from_cds_start(120))
-
-    def test_distance_from_tss_2exons(self):
-        trans = ft.Transcript('t', self.gene1)
-        trans.cds_start = 110
-        exon1 = ft.Exon(1, trans, 100, 200)
-        exon2 = ft.Exon(2, trans, 300, 400)
-        self.assertEqual(91, trans.distance_from_cds_start(300))
-
-
-class TestGene(ut.TestCase):
-    chr1 = ft.Chromosome('chr1')
-    gene1 = ft.Gene('g1', chr1, 'gene1', '+')
-    trans1 = ft.Transcript('t1', gene1)
-
-    def test_transcripts(self):
-        n = 0
-        for trans in self.gene1.transcripts:
-            n += 1
-        self.assertEqual(1, n)
 
 
 class TestChromosome(ut.TestCase):

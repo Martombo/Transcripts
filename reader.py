@@ -188,14 +188,14 @@ class Bam:
         n_reads = 0
         for read in fetch:
             if read.mapq >= min_qual:
-                if strand and strand == self.determine_strand(read):
+                if not strand or strand == self.determine_strand(read):
                     n_reads += 1
         return n_reads
 
     def determine_strand(self, read):
         """determines the annotation strand a read would match"""
         if self.reads_orientation == 'mixed':
-            return 'NA'
+            return ''
         strand_bool = True
         if read.is_reverse:
             strand_bool = not strand_bool
