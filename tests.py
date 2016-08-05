@@ -29,6 +29,10 @@ class TestFeatureGeneral(ut.TestCase):
         pos = ft.move_pos(100, +10, '-')
         self.assertEqual(90, pos)
 
+    def test_move_pos3(self):
+        pos = ft.move_pos(100, -10, '-')
+        self.assertEqual(110, pos)
+
     def test_before_strand(self):
         self.assertTrue(ft.before_strand(100, 200, '+'))
 
@@ -332,6 +336,8 @@ class TestReaderGtf(ut.TestCase):
 class TestReaderBam(ut.TestCase):
     read = pysam.AlignedSegment()
     parser_bam = rd.Bam(test=True)
+    read.reference_start = 100
+    read.cigartuples = [[0,10],[3,10],[0,10],[1,10],[0,10]]
 
     def test_det_strand(self):
         self.read.is_reverse = False
@@ -359,3 +365,19 @@ class TestReaderBam(ut.TestCase):
         strand = self.parser_bam.determine_strand(self.read)
         self.parser_bam.reads_orientation = 'forward'
         self.assertEquals('-', strand)
+
+    def test_type_of_match(self):
+        type_of_match = self.parser_bam._type_of_match(self.read, 105)
+        self.assertEqual(0, type_of_match)
+
+    def test_type_of_match1(self):
+        type_of_match = self.parser_bam._type_of_match(self.read, 115)
+        self.assertEqual(3, type_of_match)
+
+    def test_type_of_match2(self):
+        type_of_match = self.parser_bam._type_of_match(self.read, 125)
+        self.assertEqual(0, type_of_match)
+
+    def test_type_of_match3(self):
+        type_of_match = self.parser_bam._type_of_match(self.read, 135)
+        self.assertEqual(0, type_of_match)

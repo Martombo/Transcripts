@@ -188,7 +188,7 @@ class Bam:
                 continue
             if strand and strand != self.determine_strand(read):
                 continue
-            if self._type_of_match(read, pos) == 0:
+            if not only_matching or self._type_of_match(read, pos) == 0:
                 n_reads += 1
         return n_reads
 
@@ -232,11 +232,13 @@ class Bam:
         :param pos: ref 0-based position
         """
         tmp_pos = read.reference_start
+        if tmp_pos > pos:
+            return -1
         cigar_advance = [0,2,3]
         for cigar_token in read.cigartuples:
             if cigar_token[0] in cigar_advance:
                 tmp_pos += cigar_token[1]
-                if tmp_pos >= tmp_pos:
+                if tmp_pos >= pos:
                     return cigar_token[0]
         return -1
 
