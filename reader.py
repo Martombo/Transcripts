@@ -172,24 +172,24 @@ class Bam:
                         pos_dict[pos] += 1
         return pos_dict
 
-    def get_coverage(self, chrom, start, stop=None, strand='', min_qual=40):
+    def get_coverage(self, chrom, pos, strand='', only_matching=True, min_qual=40):
         """
-        get the number of reads in region
-        reads is counted even if only 1 base overlaps region
+        get the number of reads at pos
         :param chrom: str chromosome name
-        :param start: int start 0-based
-        :param stop: int stop 0-based
+        :param pos: int start 0-based
         :param strand: '+', '-' or None
+        :param only_matching: reads are only considered in their matching part
         :param min_qual: default TopHat: only uniquely mapped reads
         """
-        if not stop:
-            stop = start + 1
-        fetch = self.pysam.fetch(chrom, start, stop)
+        fetch = self.pysam.fetch(chrom, pos, pos + 1)
         n_reads = 0
         for read in fetch:
-            if read.mapq >= min_qual:
-                if not strand or strand == self.determine_strand(read):
-                    n_reads += 1
+            if read.mapq < min_qual:
+                continue
+            if strand and strand != self.determine_strand(read):
+                continue
+            if self._type_of_match(read, pos) == 0:
+                n_reads += 1
         return n_reads
 
     def determine_strand(self, read):
@@ -222,6 +222,23 @@ class Bam:
                 return rel_pos, abs_pos, cigar_token[1]
             if cigar_token[0] == 3:
                 abs_pos += cigar_token[1]
+
+    @staticmethod
+    def _type_of_match(read, pos):
+        """
+        returns the cigar kind of match between read and reference at pos
+        0 -> match, 2 -> del, 3 -> non_match, -1 -> no_overlap
+        :param read: the read (pysam object)
+        :param pos: ref 0-based position
+        """
+        tmp_pos = read.reference_start
+        cigar_advance = [0,2,3]
+        for cigar_token in read.cigartuples:
+            if cigar_token[0] in cigar_advance:
+                tmp_pos += cigar_token[1]
+                if tmp_pos >= tmp_pos:
+                    return cigar_token[0]
+        return -1
 
 
 class BedGraph:
