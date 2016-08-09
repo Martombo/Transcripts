@@ -242,24 +242,29 @@ class Transcript:
         for exon_n in range(1, len(exons)):
             self.splice_sites.append(str(exons[exon_n - 1].stop) + '_' + str(exons[exon_n].start))
 
-    def ups_splice_intervals(self, up_distance=200, dw_distance=200):
-        exons = list(self.exons)
-        for exon in exons[:-1]:
+    def ups_splice_intervals(self, up_distance=200, dw_distance=200, skip_short=True):
+        for exon in list(self.exons)[:-1]:
             start = self.abs_pos_upstream(exon.stop, up_distance)
             if not start:
                 continue
             intervals = list(self.intervals(start, exon.stop))
-            intervals[-1] = (intervals[-1][0], move_pos(exon.stop, dw_distance, self.strand))
+            stop = move_pos(exon.stop, dw_distance, self.strand)
+            if skip_short and self.includes(stop):
+                continue
+            intervals[-1] = (intervals[-1][0], stop)
             yield intervals
 
-    def dws_splice_intervals(self, up_distance=200, dw_distance=200):
+    def dws_splice_intervals(self, up_distance=200, dw_distance=200, skip_short=True):
         exons = list(self.exons)
         for exon in exons[1:]:
             stop = self.abs_pos_downstream(exon.start, dw_distance)
             if not stop:
                 continue
             intervals = list(self.intervals(exon.start, stop))
-            intervals[0] = (move_pos(exon.start, - up_distance, self.strand), intervals[0][1])
+            start = move_pos(exon.start, - up_distance, self.strand)
+            if skip_short and self.includes(start):
+                continue
+            intervals[0] = (start, intervals[0][1])
             yield intervals
 
     def relative_position(self, pos):
