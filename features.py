@@ -375,7 +375,7 @@ class Transcript:
             if exon.includes(pos):
                 if exon.includes(self.cds_start):
                     return abs(self.cds_start - pos)
-                return distance + exon.distance_from_start(pos)
+                return distance + exon.relative_position(pos)
             elif exon.includes(self.cds_start):
                 distance += abs(self.cds_start - exon.stop) + 1
             else:
