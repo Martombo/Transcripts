@@ -363,9 +363,23 @@ class Transcript:
             start += 1
             if not self.in_cds(start):
                 continue
-            rel_pos = self.relative_position(start)
+            rel_pos = self.distance_from_cds_start(start)
             rel_starts[rel_pos] = n_reads
         return rel_starts
+
+    def distance_from_cds_start(self, pos):
+        if not self.cds_start:
+            return
+        distance = 0
+        for exon in self.exons:
+            if exon.includes(pos):
+                if exon.includes(self.cds_start):
+                    return abs(self.cds_start - pos)
+                return distance + exon.distance_from_start(pos)
+            elif exon.includes(self.cds_start):
+                distance += abs(self.cds_start - exon.stop) + 1
+            else:
+                distance += len(exon)
 
     def set_cds_from_start(self, cds_start):
         genomic_cds_start, seq = 0, ''
