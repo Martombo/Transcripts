@@ -278,7 +278,7 @@ class Transcript:
     def distance_to_end(self, pos):
         return len(self) - self.relative_position(pos)
 
-    def intervals(self, start=tss, stop=tstop):
+    def intervals(self, start, stop):
         """given chrom positions start and stop in transcript, returns the exonic intervals"""
         start, stop = fix_order(start, stop, self.strand)
         after_start = False
