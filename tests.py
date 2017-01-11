@@ -1,7 +1,9 @@
 import unittest as ut
+import unittest.mock as um
 import features as ft
 import reader as rd
 import pysam
+import os
 
 
 class TestFeatureGeneral(ut.TestCase):
@@ -319,18 +321,21 @@ class TestSequence(ut.TestCase):
 
 class TestReaderGtf(ut.TestCase):
     attr = 'gene_id "ENSG00000223972"; gene_version "5"; gene_name "DDX11L1"; gene_source "havana"; gene_biotype "transcribed_unprocessed_pseudogene"; transcript_id "ENST00000249857"; exon_number "1";\n'
-    mocking = '\t'.join(['1', 'havana', 'exon', '11869', '14409', '.', '+', '.', attr])
+    gtf_line = '\t'.join(['1', 'havana', 'exon', '11869', '14409', '.', '+', '.', attr])
 
     def test_parse_line(self):
         gtf = rd.Gtf('', test=True)
-        line_dic = gtf._parse_line(self.mocking)
+        line_dic = gtf._parse_line(self.gtf_line)
         self.assertIsNotNone(line_dic)
         gene = gtf._get_gene(line_dic)
         self.assertIsNotNone(gene)
 
     def test_it(self):
-        gtf = rd.Gtf('/Users/martin/notDropbox/utils/genes/Homo_sapiens.GRCh38.81_head.gtf')
-        genome = gtf.get_genome()
+        gtf_file = '/Users/martin/notDropbox/utils/genes/Homo_sapiens.GRCh38.81_head.gtf'
+        if os.path.isfile(gtf_file):
+            gtf = rd.Gtf('/Users/martin/notDropbox/utils/genes/Homo_sapiens.GRCh38.81_head.gtf')
+            genome = gtf.get_genome()
+            self.assertIsNotNone(genome)
 
 
 class TestReaderBam(ut.TestCase):
@@ -381,3 +386,43 @@ class TestReaderBam(ut.TestCase):
     def test_type_of_match3(self):
         type_of_match = self.parser_bam._type_of_match(self.read, 135)
         self.assertEqual(0, type_of_match)
+
+
+class TestReaderBed12(ut.TestCase):
+    parser_bed12 = rd.Bed12('', '', test=True)
+    bed12_line = '5	100	500	gene1	0	+	100	500	0	3	10,30,50,	0,100,200,\n'
+    bed12_line_space = '5 100 500 gene1 0 + 100 500 0 3 10,30,50 0,100,200,\n'
+    m = um.Mock()
+
+    def test_find_delim(self):
+        self.m.return_value.__iter__ = lambda x: iter([self.bed12_line])
+        with um.patch('reader.open', self.m, create=True):
+            self.assertEquals('\t', self.parser_bed12._find_delim())
+
+    def test_find_delim_space(self):
+        self.m.return_value.__iter__ = lambda x: iter([self.bed12_line_space])
+        with um.patch('reader.open', self.m, create=True):
+            self.assertEquals(' ', self.parser_bed12._find_delim())
+
+    def test_parse_line(self):
+        self.parser_bed12.delim = '\t'
+        parsed = self.parser_bed12._parse_line(self.bed12_line)
+        self.assertEquals(12, len(parsed))
+        self.assertEquals('gene1', parsed['name'])
+        self.assertEquals('+', parsed['strand'])
+        self.assertEquals([10,30,50], parsed['blocks_size'])
+
+    def test_intervals(self):
+        self.parser_bed12.delim = '\t'
+        parsed = self.parser_bed12._parse_line(self.bed12_line)
+        intervals = list(self.parser_bed12._intervals(parsed))
+        self.assertEquals(3, len(intervals))
+        self.assertEquals((200,230), intervals[1])
+
+    def test_read_single_pos(self):
+        self.parser_bed12.delim = '\t'
+        self.m.return_value.__iter__ = lambda x: iter([self.bed12_line])
+        with um.patch('reader.open', self.m, create=True):
+            single_poss = list(self.parser_bed12.read_single_pos())
+            self.assertEquals(('5', 100, '+'), single_poss[0])
+            self.assertEquals(90, len(single_poss))

@@ -246,16 +246,17 @@ class Bam:
 class BedGraph:
     """utility functions to parse BedGraph"""
 
-    def __init__(self, path, strand, genome=None, test=False):
+    def __init__(self, path, strand, genome=None, delim='\t', test=False):
         """positions are 0-based"""
         if not test:
             assert os.path.isfile(path)
         self.path = path
         self.strand = strand
+        self.delim = delim
         if genome:
             self.chroms_dict = genome.chroms_dict
 
-    def iter(self):
+    def read(self):
         """returns 1-based positions and scores"""
         for linea in open(self.path, 'r'):
             interval = self._parse_line(linea)
@@ -264,8 +265,50 @@ class BedGraph:
             for base in range(interval['start'] + 1, interval['stop'] + 1):
                 yield base, interval['score']
 
-    @staticmethod
-    def _parse_line(linea, delim='\t'):
-        splat = linea.rstrip('\n').split(delim)
+    def _parse_line(self, linea):
+        splat = linea.rstrip('\n').split(self.delim)
         assert len(splat) == 4
-        return {'chrom': splat[0], 'start': int(splat[1]), 'stop': int(splat[2]), 'score':float(splat[3])}
+        return {'chrom':splat[0], 'start':int(splat[1]), 'stop':int(splat[2]), 'score':float(splat[3])}
+
+
+class Bed12:
+    """utility functions to parse Bed12"""
+
+    def __init__(self, path, delim='', test=False):
+        """positions are 0-based"""
+        if not test:
+            assert os.path.isfile(path)
+            if not delim:
+                delim = self._find_delim()
+        self.path = path
+        self.delim = delim
+
+    def _find_delim(self):
+        for linea in open(self.path):
+            if len(linea.split('\t')) == 12:
+                return '\t'
+            if len(linea.split(' ')) == 12:
+                return ' '
+        raise Exception('unknown first line delimiter of bed12 file')
+
+    def read_single_pos(self):
+        """returns (chrom, pos, strand) for every single pos in each interval, 0-based"""
+        for linea in open(self.path):
+            parsed = self._parse_line(linea)
+            for interval in self._intervals(parsed):
+                for pos in range(*interval):
+                    yield parsed['chrom'], pos, parsed['strand']
+
+    def _intervals(self, parsed):
+        """computes the blocks intervals from a parsed line"""
+        for n_block in range(parsed['n_blocks']):
+            start = parsed['start'] + parsed['blocks_start'][n_block]
+            yield start, start+parsed['blocks_size'][n_block]
+
+    def _parse_line(self, linea):
+        splat = linea.rstrip('\n').split(self.delim)
+        assert len(splat) == 12
+        return {'chrom':splat[0], 'start':int(splat[1]), 'stop':int(splat[2]), 'name':splat[3], 'score':float(splat[4]),
+                'strand':splat[5], 'start_alt':int(splat[6]), 'stop_alt':int(splat[7]), 'n_blocks':int(splat[9]),
+                'rgb':[int(x) for x in splat[8].split(',')], 'blocks_size':[int(x) for x in splat[10].split(',') if x],
+                'blocks_start':[int(x) for x in splat[11].split(',') if x]}
