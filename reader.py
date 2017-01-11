@@ -276,11 +276,11 @@ class Bed12:
 
     def __init__(self, path, delim='', test=False):
         """positions are 0-based"""
+        self.path = path
         if not test:
             assert os.path.isfile(path)
             if not delim:
                 delim = self._find_delim()
-        self.path = path
         self.delim = delim
 
     def _find_delim(self):
@@ -291,9 +291,13 @@ class Bed12:
                 return ' '
         raise Exception('unknown first line delimiter of bed12 file')
 
-    def read_single_pos(self):
-        """returns (chrom, pos, strand) for every single pos in each interval, 0-based"""
-        for linea in open(self.path):
+    def read_single_pos(self, bed12_line=None):
+        """returns (chrom, pos, strand) for every single pos in each
+        interval of the file or of a line, if provided, 0-based"""
+        to_iter = iter([bed12_line])
+        if not bed12_line:
+            to_iter = open(self.path)
+        for linea in to_iter:
             parsed = self._parse_line(linea)
             for interval in self._intervals(parsed):
                 for pos in range(*interval):
@@ -303,7 +307,9 @@ class Bed12:
         """computes the blocks intervals from a parsed line"""
         for n_block in range(parsed['n_blocks']):
             start = parsed['start'] + parsed['blocks_start'][n_block]
-            yield start, start+parsed['blocks_size'][n_block]
+            stop = start+parsed['blocks_size'][n_block]
+            yield start, stop
+        assert parsed['stop'] == stop
 
     def _parse_line(self, linea):
         splat = linea.rstrip('\n').split(self.delim)

@@ -390,8 +390,8 @@ class TestReaderBam(ut.TestCase):
 
 class TestReaderBed12(ut.TestCase):
     parser_bed12 = rd.Bed12('', '', test=True)
-    bed12_line = '5	100	500	gene1	0	+	100	500	0	3	10,30,50,	0,100,200,\n'
-    bed12_line_space = '5 100 500 gene1 0 + 100 500 0 3 10,30,50 0,100,200,\n'
+    bed12_line = '5	100	350	gene1	0	+	100	350	0	3	10,30,50,	0,100,200,\n'
+    bed12_line_space = '5 100 350 gene1 0 + 100 350 0 3 10,30,50 0,100,200,\n'
     m = um.Mock()
 
     def test_find_delim(self):
@@ -418,6 +418,12 @@ class TestReaderBed12(ut.TestCase):
         intervals = list(self.parser_bed12._intervals(parsed))
         self.assertEquals(3, len(intervals))
         self.assertEquals((200,230), intervals[1])
+
+    def test_read_single_pos_line(self):
+        self.parser_bed12.delim = '\t'
+        single_poss = list(self.parser_bed12.read_single_pos(self.bed12_line))
+        self.assertEquals(('5', 100, '+'), single_poss[0])
+        self.assertEquals(90, len(single_poss))
 
     def test_read_single_pos(self):
         self.parser_bed12.delim = '\t'
