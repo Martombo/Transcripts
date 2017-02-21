@@ -116,6 +116,8 @@ class TestTranscripts(ut.TestCase):
     chr1 = ft.Chromosome('chr1')
     gene1 = ft.Gene('g1', chr1, 'gene1', '+')
     gene2 = ft.Gene('g1', chr1, 'gene1', '-')
+    m = um.Mock()
+    read1 = um.Mock()
 
     def test_simple(self):
         trans1 = ft.Transcript('t1', self.gene1)
@@ -262,6 +264,15 @@ class TestTranscripts(ut.TestCase):
         self.assertEqual(200, inter[1][0])
         self.assertEqual(140, inter[1][1])
 
+    def test_cds_relative_starts_simple(self):
+        starts = {199:1}
+        m = um.Mock()
+        m.get_read_starts = lambda *args: starts
+        trans = ft.Transcript('t', self.gene1)
+        ft.Exon('e1', 1, trans, 1, 1000)
+        trans.add_cds(100, 500)
+        rel_starts = trans.get_cds_relative_starts(m)
+        self.assertEquals(100, list(rel_starts.keys())[0])
 
 class TestChromosome(ut.TestCase):
     chr1 = ft.Chromosome('chr1')
