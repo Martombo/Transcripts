@@ -354,7 +354,7 @@ class Transcript:
         :param bam: a bam object (from reader module)
         :param min_qual: default TopHat: only uniquely mapped reads
         :param read_len: only consider reads whose length is in this list
-        :return: a dict with 1-based starts as key and number of reads as value
+        :return: a dict with 1-based starts as key and number of reads as value (first is 1)
         """
         start_stop = fix_order(self.cds_start, self.cds_stop, '+')
         starts_dict = bam.get_read_starts(self.chromosome.name, start_stop[0], start_stop[1], self.strand, min_qual, read_len)
@@ -363,7 +363,7 @@ class Transcript:
             start += 1
             if not self.in_cds(start):
                 continue
-            rel_pos = self.distance_from_cds_start(start)
+            rel_pos = self.distance_from_cds_start(start) + 1
             rel_starts[rel_pos] = n_reads
         return rel_starts
 

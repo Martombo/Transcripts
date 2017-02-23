@@ -132,7 +132,7 @@ class Gtf:
 class Bam:
     """utility functions to parse bam"""
 
-    def __init__(self, path=None, reads_orientation='forward', test=False):
+    def __init__(self, path=None, reads_orientation='mixed', test=False):
         """
         positions are 0-based
         :param reads_orientation: either 'forward', 'reverse' or 'mixed'
@@ -165,7 +165,7 @@ class Bam:
         for read in fetch:
             if read.mapq >= min_qual:
                 if not read_len or read.template_length in read_len:
-                    if strand and strand == self.determine_strand(read):
+                    if strand == self.determine_strand(read):
                         pos = read.reference_start
                         if pos not in pos_dict:
                             pos_dict[pos] = 0
