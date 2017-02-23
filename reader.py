@@ -163,13 +163,17 @@ class Bam:
         fetch = self.pysam.fetch(chrom, start, stop)
         pos_dict = {}
         for read in fetch:
-            if read.mapq >= min_qual:
-                if not read_len or read.template_length in read_len:
-                    if strand == self.determine_strand(read):
-                        pos = read.reference_start
-                        if pos not in pos_dict:
-                            pos_dict[pos] = 0
-                        pos_dict[pos] += 1
+            if read.mapq < min_qual:
+                continue
+            if not read_len or read.template_length in read_len:
+                if strand != self.determine_strand(read):
+                    continue
+                pos = read.reference_start
+                if strand == '-':
+                    pos = read.reference_end - 1
+                if pos not in pos_dict:
+                    pos_dict[pos] = 0
+                pos_dict[pos] += 1
         return pos_dict
 
     def get_coverage(self, chrom, pos, strand='', only_matching=True, min_qual=40):
