@@ -44,6 +44,33 @@ class TestFeatureGeneral(ut.TestCase):
     def test_before_strand_false(self):
         self.assertFalse(ft.before_strand(200, 100, '+'))
 
+    def test_motif_to_sequences_simple(self):
+        motif = ft.Motif('ACGT')
+        sequences = motif.possible_sequences
+        self.assertEquals(1, len(sequences))
+        self.assertIn('ACGT', sequences)
+
+    def test_motif_to_sequences_1base_2choices(self):
+        motif = ft.Motif('ARGT')
+        sequences = motif.possible_sequences
+        self.assertEquals(2, len(sequences))
+        self.assertIn('AAGT', sequences)
+        self.assertIn('AGGT', sequences)
+
+    def test_motif_to_sequences_2bases_2choices(self):
+        motif = ft.Motif('ARGTK')
+        sequences = motif.possible_sequences
+        self.assertEquals(4, len(sequences))
+        self.assertIn('AAGTG', sequences)
+        self.assertIn('AAGTT', sequences)
+        self.assertIn('AGGTG', sequences)
+        self.assertIn('AGGTT', sequences)
+
+    def test_motif_to_sequences_36(self):
+        motif = ft.Motif('RACATTDGCCHTGAGY')
+        sequences = motif.possible_sequences
+        self.assertEquals(36, len(sequences))
+
 
 class TestExons(ut.TestCase):
     chr1 = ft.Chromosome('chr1')
