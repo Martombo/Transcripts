@@ -1,4 +1,5 @@
 import subprocess as sp
+import itertools as it
 import os
 
 
@@ -650,55 +651,47 @@ class Sequence:
         return self_start, energy
 
 
-class Motif:
+def motif_to_sequences(seq_in, seq_out='', pos=0):
+    """
+    yields all sequences that would be matched by a degenerate motif
+    eg: ARTG -> AATG, AGTG
+    """
+    if pos == len(seq_in):
+        return [seq_out]
+    alt_bases = iupac_alt_bases(seq_in[pos])
+    seqs_out = [motif_to_sequences(seq_in, seq_out+x, pos+1) for x in alt_bases]
+    return list(it.chain(*seqs_out))
 
-    def __init__(self, degenerate_sequence):
-        self.seq = degenerate_sequence.upper()
-        self.possible_sequences = []
-        self.to_sequences()
 
-    def to_sequences(self, tmp_seq_out='', pos=0):
-        """
-        yields all sequences that would be matched by a degenerate motif
-        eg: ARTG -> AATG, AGTG
-        """
-        if pos == len(self.seq):
-            self.possible_sequences.append(tmp_seq_out)
-            return
-        alt_bases = self._iupac_alt_bases(self.seq[pos])
-        for alt_base in alt_bases:
-            self.to_sequences(tmp_seq_out + alt_base, pos+1)
-
-    @staticmethod
-    def _iupac_alt_bases(base):
-        """
-        returns a list of nucleotides that correspond to the code used
-        eg: R -> A, G
-        :rtype: list
-        """
-        base = base.upper()
-        if base == 'R':
-            return ['A', 'G']
-        elif base == 'Y':
-            return ['C', 'T']
-        elif base == 'S':
-            return ['G', 'C']
-        elif base == 'W':
-            return ['A', 'T']
-        elif base == 'K':
-            return ['G', 'T']
-        elif base == 'M':
-            return ['A', 'C']
-        elif base == 'B':
-            return ['C', 'G', 'T']
-        elif base == 'D':
-            return ['A', 'G', 'T']
-        elif base == 'H':
-            return ['A', 'C', 'T']
-        elif base == 'V':
-            return ['A', 'C', 'G']
-        else:
-            return [base]
+def iupac_alt_bases(base):
+    """
+    returns a list of nucleotides that correspond to the code used
+    eg: R -> A, G
+    :rtype: list
+    """
+    base = base.upper()
+    if base == 'R':
+        return ['A', 'G']
+    elif base == 'Y':
+        return ['C', 'T']
+    elif base == 'S':
+        return ['G', 'C']
+    elif base == 'W':
+        return ['A', 'T']
+    elif base == 'K':
+        return ['G', 'T']
+    elif base == 'M':
+        return ['A', 'C']
+    elif base == 'B':
+        return ['C', 'G', 'T']
+    elif base == 'D':
+        return ['A', 'G', 'T']
+    elif base == 'H':
+        return ['A', 'C', 'T']
+    elif base == 'V':
+        return ['A', 'C', 'G']
+    else:
+        return [base]
 
 
 def fix_order(pos1, pos2, strand):
