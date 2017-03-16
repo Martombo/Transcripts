@@ -690,6 +690,8 @@ def iupac_alt_bases(base):
         return ['A', 'C', 'T']
     elif base == 'V':
         return ['A', 'C', 'G']
+    elif base == 'N':
+        return ['A', 'C', 'G', 'T']
     else:
         return [base]
 
