@@ -297,6 +297,15 @@ class Transcript:
                 else:
                     yield start, exon.stop
 
+    def intronic_intervals(self):
+        """yields tuples of intronic starts, stops"""
+        intron_start = 0
+        pos_corr = 1 if self.strand == '+' else -1
+        for exon in self.exons:
+            if intron_start:
+                yield intron_start, exon.start - pos_corr
+            intron_start = exon.stop + pos_corr
+
     @staticmethod
     def exon_n_with(pos, exons):
         """returns the number of the exon that has pos"""
