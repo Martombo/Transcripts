@@ -485,14 +485,14 @@ class Exon:
 
     def gtf(self):
         transs = '_'.join([x.id + '.' + self.id for x in self.transcripts])
-        return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
+        return '\t'.join([self.chromosome.name, 'io', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
                           self.strand, 'gene_id "' + transs + '";'])
 
     def gtf_coding(self):
         coding_transcripts = self.coding_transcripts()
         if coding_transcripts:
             transs = '_'.join([x.id + '.' + self.id for x in coding_transcripts])
-            return '\t'.join([self.chromosome.name, 't', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
+            return '\t'.join([self.chromosome.name, 'io', 'exon', str(self.genomic_start), str(self.genomic_stop), '.',
                               self.strand, 'gene_id "' + transs + '";'])
 
 
@@ -755,6 +755,30 @@ def before_strand(pos1, pos2, strand):
     if strand == '-' and pos1 >= pos2:
         return True
     return False
+
+
+def intervals_to_gtf(intervals, strand, chrom, feat='exon', field9_dict=None):
+    """
+    returns 1-based gtf lines from 0-based intervals
+    :param intervals: start and stop must be ordered by strand
+    :param strand: orientation of intervals
+    :param chrom: chromosome name
+    :param feat: feature id
+    :param field9_dict: dict like {'gene_id': 'ENSG00000005007'}
+        that will be processed as 'gene_id: "ENSG00000005007"; '
+    """
+    intervals = list(intervals)
+    field9_dict = field9_dict if field9_dict else {}
+    field9 = ''
+    for key in field9_dict:
+        field9 += key + ' "' + field9_dict[key] + '"; '
+    yield '\t'.join([str(x) for x in [chrom, 'io', 'gene', min(min(intervals))+1, max(max(intervals)), '.', strand, '.', field9]])
+    if strand == '+':
+        for interval in intervals:
+            yield '\t'.join([str(x) for x in [chrom, 'io', feat, interval[0]+1, interval[1], '.', strand, '.', field9]])
+    else:
+        for interval in intervals:
+            yield '\t'.join([str(x) for x in [chrom, 'io', feat, interval[1]+1, interval[0], '.', strand, '.', field9]])
 
 
 def intervals_to_bed12(intervals, strand):
