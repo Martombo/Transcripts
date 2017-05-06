@@ -274,7 +274,7 @@ class Transcript:
             if exon.includes(pos):
                 return distance + exon.relative_position(pos)
             distance += len(exon)
-        return distance
+        return -1
 
     def distance_to_end(self, pos):
         return len(self) - self.relative_position(pos)
@@ -305,6 +305,18 @@ class Transcript:
             if intron_start:
                 yield intron_start, exon.start - pos_corr
             intron_start = exon.stop + pos_corr
+
+    def get_relative_read_starts(self, bam, min_qual=40):
+        """
+        :param bam: a bam object (from reader module)
+        :param min_qual: default TopHat: only uniquely mapped reads
+        """
+        start_stop = fix_order(self.tss, self.tstop, '+')
+        starts_dict = bam.get_read_starts(self.chromosome.name, start_stop[0]-1, start_stop[1], self.strand, min_qual)
+        for start, n_reads in starts_dict.items():
+            start_rel_pos = self.relative_position(start)
+            if start_rel_pos > -1:
+                yield start_rel_pos, n_reads
 
     @staticmethod
     def exon_n_with(pos, exons):
@@ -357,42 +369,6 @@ class Transcript:
             if len(exon) > length:
                 return move_pos(exon.stop, -length, self.strand)
             length -= len(exon)
-
-    def get_cds_relative_starts(self, bam, min_qual=40, read_len=[]):
-        """
-        saves the relative position of read starts sites overlapping its cds
-        :param bam: a bam object (from reader module)
-        :param min_qual: default TopHat: only uniquely mapped reads
-        :param read_len: only consider reads whose length is in this list
-        :return: a dict with 1-based starts as key and number of reads as value (first is 1)
-        """
-        start_stop = fix_order(self.cds_start, self.cds_stop, '+')
-        starts_dict = bam.get_read_starts(self.chromosome.name, start_stop[0], start_stop[1], self.strand, min_qual, read_len)
-        rel_starts = {}
-        for start, n_reads in starts_dict.items():
-            start += 1
-            if not self.in_cds(start):
-                continue
-            rel_pos = self.distance_from_cds_start(start)
-            if rel_pos < 0:
-                continue
-            rel_starts[rel_pos + 1] = n_reads
-        return rel_starts
-
-    def distance_from_cds_start(self, pos):
-        if not self.cds_start:
-            return -1
-        distance = 0
-        for exon in self.exons:
-            if exon.includes(pos):
-                if exon.includes(self.cds_start):
-                    return abs(self.cds_start - pos)
-                return distance + exon.relative_position(pos)
-            elif exon.includes(self.cds_start):
-                distance += abs(self.cds_start - exon.stop) + 1
-            else:
-                distance += len(exon)
-        return -1
 
     def set_cds_from_start(self, cds_start):
         genomic_cds_start, seq = 0, ''
