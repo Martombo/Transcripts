@@ -149,7 +149,7 @@ class Bam:
             self.pysam = ps.AlignmentFile(path, 'rb')
         self.reads_orientation = reads_orientation
 
-    def get_read_starts(self, chrom, start, stop, strand='', min_qual=40, read_len=[]):
+    def get_read_starts(self, chrom, start, stop, strand='', min_qual=40):
         """
         collects the read start sites from the specified interval
         :param chrom:  str chromosome name
@@ -157,23 +157,21 @@ class Bam:
         :param stop: int stop 0-based
         :param strand: '+', '-' or None
         :param min_qual: default TopHat: only uniquely mapped list
-        :param read_len: only consider reads whose length is in this list
-        :return: a dict with starts as key and number of reads as value
+        :return: a dict with 1-based starts as key and number of reads as value
         """
         fetch = self.pysam.fetch(chrom, start, stop)
         pos_dict = {}
         for read in fetch:
             if read.mapq < min_qual:
                 continue
-            if not read_len or read.template_length in read_len:
-                if strand != self.determine_strand(read):
-                    continue
-                pos = read.reference_start
-                if strand == '-':
-                    pos = read.reference_end - 1
-                if pos not in pos_dict:
-                    pos_dict[pos] = 0
-                pos_dict[pos] += 1
+            if strand != self.determine_strand(read):
+                continue
+            pos = read.reference_start + 1
+            if strand == '-':
+                pos = read.reference_end
+            if pos not in pos_dict:
+                pos_dict[pos] = 0
+            pos_dict[pos] += 1
         return pos_dict
 
     def get_coverage(self, chrom, pos, strand='', only_matching=True, min_qual=40):
@@ -195,6 +193,24 @@ class Bam:
             if not only_matching or self._type_of_match(read, pos) == 0:
                 n_reads += 1
         return n_reads
+
+    def get_reads(self, chrom, start, stop, strand='', min_qual=40):
+        """
+        get the reads spanning a start-stop interval
+        :param chrom: str chromosome name
+        :param start: int start 0-based
+        :param stop: int stop 0-based
+        :param strand: '+', '-' or None
+        :param min_qual: default TopHat: only uniquely mapped reads
+        """
+        poss = sorted((start, stop))
+        fetch = self.pysam.fetch(chrom, poss[0], poss[1])
+        for read in fetch:
+            if read.mapq < min_qual:
+                continue
+            if strand and strand != self.determine_strand(read):
+                continue
+            yield read
 
     def determine_strand(self, read):
         """determines the annotation strand a read would match"""
